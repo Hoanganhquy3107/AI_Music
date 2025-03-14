@@ -1,1 +1,4 @@
 .env
+*.pyc
+__pycache__/
+*.h5  # Nếu có file mô hình AI
