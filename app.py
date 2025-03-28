@@ -26,6 +26,8 @@ import time
 from dotenv import load_dotenv
 from supabase import create_client, Client
 import requests  # Dùng để gửi yêu cầu API
+from auth import save_song
+import asyncio 
 
 st.set_page_config(page_title="Music AI Website", layout="wide")
 # Load API key từ file .env
@@ -43,86 +45,6 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 print(os.path.exists("D:/test/Music-Genre-Recognition-main/.streamlit/secrets.toml"))
 
-# Session State để lưu trạng thái đăng nhập
-if "user" not in st.session_state:
-    st.session_state.user = None
-
-# Hàm kiểm tra email hợp lệ
-def is_valid_email(email):
-    return re.match(r"^[a-zA-Z0-9._%+-]+@gmail\.com$", email)
-
-# Giao diện trang đăng nhập
-def login_page():
-    st.title("🔑 Đăng Nhập")
-    email = st.text_input("📧 Email", placeholder="Nhập email của bạn")
-    password = st.text_input("🔒 Mật khẩu", type="password", placeholder="Nhập mật khẩu")
-
-    if st.button("🚀 Đăng Nhập"):
-            try:
-                user = supabase.auth.sign_in_with_password({"email": email, "password": password})
-                st.session_state.user = user
-                st.success("✅ Đăng nhập thành công!")
-                st.experimental_rerun()
-            except Exception as e:
-                st.error(f"❌ Lỗi: {e}")
-
-
-    st.markdown("---")
-    st.markdown("🔹 **Chưa có tài khoản?** [Đăng ký ngay](#)")
-    st.markdown("🔹 **Quên mật khẩu?** [Lấy lại mật khẩu](#)")
-
-# Giao diện trang đăng ký
-def register_page():
-    st.title("📝 Đăng Ký")
-    email = st.text_input("📧 Email", placeholder="Nhập email")
-    password = st.text_input("🔒 Mật khẩu", type="password", placeholder="Nhập mật khẩu")
-    confirm_password = st.text_input("🔒 Xác nhận mật khẩu", type="password", placeholder="Nhập lại mật khẩu")
-
-    if st.button("✅ Đăng Ký"):
-        if not is_valid_email(email):
-            st.error("⚠️ Vui lòng nhập địa chỉ email hợp lệ có dạng @gmail.com!")
-        elif password != confirm_password:
-            st.error("⚠️ Mật khẩu không khớp!")
-        else:
-            try:
-                supabase.auth.sign_up({"email": email, "password": password})
-                st.success("🎉 Đăng ký thành công! Kiểm tra email để xác nhận.")
-            except Exception as e:
-                st.error(f"❌ Lỗi: {e}")
-
-# Giao diện trang quên mật khẩu
-def reset_password_page():
-    st.title("🔑 Quên Mật Khẩu")
-    email = st.text_input("📧 Email", placeholder="Nhập email của bạn")
-
-    if st.button("🔄 Lấy lại mật khẩu"):
-        try:
-            supabase.auth.reset_password_for_email(email)
-            st.success("📩 Kiểm tra email để đặt lại mật khẩu!")
-        except Exception as e:
-            st.error(f"❌ Lỗi: {e}")
-
-# Giao diện trang chính sau khi đăng nhập
-def main_page():
-    st.title("🎉 Chào mừng bạn!")
-    st.success(f"✅ Bạn đã đăng nhập với email: {st.session_state.user['user']['email']}")
-    
-    if st.button("🚪 Đăng xuất"):
-        supabase.auth.sign_out()
-        st.session_state.user = None
-        st.experimental_rerun()
-
-# Điều hướng giữa các trang
-if st.session_state.user:
-    main_page()
-else:
-    option = st.sidebar.radio("🔹 Chọn chức năng", ["🔑 Đăng Nhập", "📝 Đăng Ký", "🔄 Quên Mật Khẩu"])
-    if option == "🔑 Đăng Nhập":
-        login_page()
-    elif option == "📝 Đăng Ký":
-        register_page()
-    else:
-        reset_password_page()
 
 def generate_lyrics(prompt):
     """Gửi prompt đến OpenAI API để tạo lời bài hát"""
@@ -208,15 +130,65 @@ st.markdown(
 )
 
 
-
-
-
-# Tạo menu Sidebar có icon
 with st.sidebar:
-    st.image("D:/test/Music-Genre-Recognition-main/.image/a-minimalist-logo-design-on-a-black-back_0AWYUQ3rQfy5rgcfFzPdJQ_5N7Moh5lTRa_PQanVq-UkQ.jpeg", use_container_width=True)
-    
+    st.image("a-minimalist-logo-design-on-a-black-back.jpeg", use_container_width=True)
+    # Nếu chưa đăng nhập thì hiển thị menu Đăng ký/Đăng nhập/Quên mật khẩu
+    if "user" not in st.session_state:
+        auth_menu = st.radio("🔐 Tài khoản", ["Đăng nhập", "Đăng ký", "Quên mật khẩu"], horizontal=True)
+
+        if auth_menu == "Đăng ký":
+            st.subheader("✍️ Đăng ký tài khoản")
+            full_name = st.text_input("Họ tên")
+            email = st.text_input("Email")
+            password = st.text_input("Mật khẩu", type="password")
+            if st.button("🚀 Đăng ký"):
+                from auth import register_user
+                success, msg = register_user(email, password, full_name)
+                if success:
+                    st.success(msg)
+                    st.info("📧 Vui lòng kiểm tra hộp thư để xác minh tài khoản trước khi đăng nhập.")
+                else:
+                    st.error(msg)
+
+        elif auth_menu == "Đăng nhập":
+            st.subheader("🔑 Đăng nhập")
+            email = st.text_input("Email đăng nhập")
+            password = st.text_input("Mật khẩu", type="password")
+            if st.button("🔓 Đăng nhập"):
+                from auth import login_user
+                success, msg = login_user(email, password)
+                if success:
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
+
+        elif auth_menu == "Quên mật khẩu":
+            st.subheader("📧 Đặt lại mật khẩu")
+            email = st.text_input("Nhập email đã đăng ký")
+            
+            if st.button("Gửi email đặt lại mật khẩu"):
+                from auth import supabase
+                try:
+                    res = supabase.auth.reset_password_for_email(email)
+                    st.success("📬 Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư đến.")
+                except Exception as e:
+                    st.error(f"❌ Lỗi khi gửi email: {e}")
 
 
+    # Hiển thị thông tin user hoặc guest
+    if "user" in st.session_state:
+        st.markdown(f"👋 Xin chào, **{st.session_state['user']['email']}**")
+        st.markdown("📌 Bạn có thể sử dụng toàn bộ chức năng")
+        if st.button("🚪 Đăng xuất"):
+            st.session_state.clear()
+            st.success("✅ Đã đăng xuất.")
+            st.rerun()
+    else:
+        st.markdown("👤 Bạn đang truy cập với tư cách **khách**")
+        st.info("👉 Vui lòng đăng nhập để mở khoá các tính năng chính.")
+
+    # Menu chính
     menu = option_menu(
         menu_title="Navigation",
         options=["Home", "Create Lyrics", "Feel The Beat", "Classify", "Explore", "Library", "Search"],
@@ -230,6 +202,14 @@ with st.sidebar:
             "nav-link-selected": {"background-color": "#ff7e5f"},
         }
     )
+
+# 🚫 Chặn menu nếu chưa đăng nhập
+protected_menus = ["Create Lyrics", "Feel The Beat", "Classify", "Explore", "Library"]
+
+if menu in protected_menus and "user" not in st.session_state:
+    st.warning("🔒 Vui lòng đăng nhập để truy cập chức năng này.")
+    st.stop()
+
 
 
 
@@ -336,243 +316,304 @@ if menu == "Classify":
 
 
 
-# =================== GIAO DIỆN CHO CREATE LYRICS ===================
 if menu == "Create Lyrics":
+    import pyperclip
     st.markdown("<h1>🎶 AI Lyric Generator 🎵</h1>", unsafe_allow_html=True)
 
     # Người dùng nhập thể loại nhạc và chủ đề
-    genre = st.selectbox("🎼 Chọn thể loại nhạc:", ["Pop", "Rock", "Hip-Hop", "Jazz", "Ballad", "EDM"])
-    theme = st.text_input("✍️ Nhập chủ đề bài hát (VD: Tình yêu, Mùa thu, Tuổi trẻ, ...)")
-    mood = st.radio("🎭 Chọn cảm xúc:", ["Vui vẻ", "Buồn", "Hào hứng", "Thư giãn", "Kịch tính"])
-
+    genre = st.text_input("🎼 Chọn thể loại nhạc: ",
+                        placeholder="Pop, Rock, Hip-Hop, Jazz, Ballad, EDM,....")
+    mood = st.text_input("🎭 Chọn cảm xúc: ",
+                        placeholder="Vui vẻ, Buồn, Hào hứng, Thư giãn, Kịch ,....")
+    theme = st.text_input("✍️ Mô tả bản nhạc bạn muốn tạo:",
+                        placeholder="Tình yêu, Mùa thu, Tuổi trẻ, ...")
+    
+    if "lyrics_input" in st.session_state:
+        lyrics = st.session_state.lyrics_input
+    else:
+        lyrics = ""
+    
     if st.button("🎤 Sáng tác ngay!"):
         if theme.strip():
             with st.spinner("🎶 AI đang sáng tác lời bài hát cho bạn..."):
                 prompt = f"Hãy viết lời bài hát thể loại {genre} về chủ đề '{theme}', với cảm xúc {mood}."
                 lyrics = generate_lyrics(prompt)
-                print(lyrics)
-                st.text_area("🎼 Lời bài hát AI tạo:", lyrics, height=300)
         else:
             st.warning("⚠️ Vui lòng nhập chủ đề bài hát trước khi tạo!")
-       
+
+    # Hiển thị text_area và lưu giá trị trực tiếp vào lyrics
+    lyrics_input = st.text_area("🎼 Lời bài hát AI tạo:", lyrics, height=300)
+    # Kiểm tra nếu nội dung text_area thay đổi và tự động sao chép vào clipboard
+    
+    if st.button("Copy Lyrics"):
+            pyperclip.copy(lyrics_input)  # Sao chép lyrics vào clipboard
+            lyrics = lyrics_input
+            st.session_state.lyrics = lyrics
+            st.success("Lyrics have been copied to clipboard and Feel The Beat")  # Hiển thị thông báo thành công
+
+    if lyrics_input != lyrics:
+        lyrics = lyrics_input
+        st.session_state.lyrics_input = lyrics
 
 
+import time
+import requests
+import streamlit as st
 
-if menu == "Feel The Beat":
+# Hàm tạo nhạc từ API
+async def generate_music(api_token, prompt, custom_mode, style, title, instrumental):
+    api_url = "https://apibox.erweima.ai/api/v1/generate"
+    headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
+    
+    if custom_mode == True:
+        data = {
+            "prompt": prompt,
+            "style": style,
+            "title": title,
+            "customMode": custom_mode,
+            "instrumental": instrumental,
+            "model": "V3_5",
+            "callBackUrl": "https://api.example.com/callback"
+        }
+    else:
+        data = {
+            "prompt": prompt,
+            "customMode": custom_mode,
+            "instrumental": instrumental,
+            "model": "V3_5",
+            "callBackUrl": "https://api.example.com/callback"
+        }
+
+    with st.spinner("🎼 Đang tạo nhạc..."):
+        response = await asyncio.to_thread(requests.post, api_url, json=data, headers=headers)
+
+    # Kiểm tra mã trạng thái của phản hồi từ API
+    if response.status_code == 200:
+        try:
+            response_json = response.json()  # Cố gắng phân tích dữ liệu JSON từ phản hồi
+
+            if response_json and 'data' in response_json:  # Kiểm tra xem 'data' có tồn tại không
+                task_id = response_json["data"].get("taskId")
+                if task_id:
+                    return task_id
+                else:
+                    st.error("🚨 Không tìm thấy taskId trong phản hồi!")
+            else:
+                st.error("🚨 Dữ liệu 'data' không tồn tại trong phản hồi API!")
+        except ValueError as e:
+            st.error(f"🚨 Không thể phân tích JSON từ API: {e}")
+            st.write("📄 Nội dung API trả về:", response.text)
+    else:
+        st.error(f"🚨 API trả về lỗi: {response.status_code}")
+        st.write("📄 Nội dung lỗi:", response.text)
+    return None
+
+# Hàm kiểm tra và hiển thị nhạc
+async def check_music_status(api_token, task_id):
+    check_url = f"https://apibox.erweima.ai/api/v1/generate/record-info?taskId={task_id}"
+    headers = {"Authorization": f"Bearer {api_token}", "Accept": "application/json"}
+
+    for _ in range(60):  # Lặp tối đa 60 lần (5 phút)
+        check_response = await asyncio.to_thread(requests.get, check_url, headers=headers)
+
+        if check_response.status_code == 200:
+            try:
+                music_info = check_response.json()
+                data = music_info.get("data", {})
+                status = data.get("status", "PENDING")
+
+                if status == "SUCCESS":
+                    suno_data = data.get("response", {}).get("sunoData", [])
+                    if suno_data:
+                        return [(item.get("audioUrl"), item.get("title"), item.get("imageUrl")) for item in suno_data]
+            except ValueError as e:
+                st.error(f"🚨 Lỗi khi phân tích JSON từ API: {e}")
+                st.write("📄 Nội dung API trả về:", check_response.text)
+                break
+        else:
+            st.error(f"🚨 Lỗi khi kiểm tra nhạc: {check_response.status_code}")
+            break
+        time.sleep(5)  # Chờ 5 giây trước khi kiểm tra lại
+    return None
+
+def render_music_player(title, audio_url, image_url):
+    """
+    Displays the music player interface with title, cover art and music player.
+    """
+    st.markdown(
+        """
+        <style>
+            .audio-container {
+                text-align: left;
+                padding: 20px;
+                position: relative;
+            }
+            audio {
+                width: 100%;
+                border: 4px solid #ff7e5f;
+                border-radius: 30px;
+                box-shadow: 0px 0px 15px #feb47b;
+            }
+            audio::-webkit-media-controls-timeline {
+                background: linear-gradient(90deg, #ff7e5f, #feb47b) !important;
+                border-radius: 30px;
+                height: 6px;
+                box-shadow: 0px 0px 10px rgba(255, 126, 95, 0.8);
+                transition: all 0.3s ease-in-out;
+                padding: 1px;
+            }
+            audio::-webkit-media-controls-play-button {
+                background-color: #ff7e5f !important;
+                box-shadow: 0px 0px 10px rgba(255, 126, 95, 0.8);
+                border-radius: 50%;
+            }
+            audio::-webkit-media-controls-volume-slider {
+                background: linear-gradient(90deg, #ff7e5f, #feb47b) !important;
+                border-radius: 30px;
+                height: 6px;
+                box-shadow: 0px 0px 10px rgba(255, 126, 95, 0.8);
+                transition: all 0.3s ease-in-out;
+                margin-top: 11px;
+                padding-top:1px;
+                padding-bottom:1px;
+            }
+            .song-title {
+                font-size: 20px;
+                font-weight: bold;
+                color: white;
+                text-align: left;
+                margin-top: 10px;
+                text-shadow: 0px 0px 10px rgba(255, 126, 95, 0.8);
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        st.image(image_url, width=150)
+    with col2:
+        st.markdown(f'<div class="song-title">{title}</div>', unsafe_allow_html=True)
+        st.audio(audio_url, format="audio/mp3")
+
+
+# Hàm hiển thị trò chơi chờ nhạc
+def render_game_html():
+    game_html = """
+    <iframe src="https://chromedino.com/color/" frameborder="0" scrolling="no" width="100%" height="100%" loading="lazy"></iframe>
+    <div style="
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background-color: #0E1117; /* Màu nền */
+        color: #FFA500; /* Màu chữ cam */
+        font-size: 24px; /* Kích thước chữ */
+        font-weight: bold; /* Đậm chữ */
+        z-index: 102;
+        display: flex; /* Căn giữa */
+        align-items: center; /* Căn giữa theo chiều dọc */
+        justify-content: center; /* Căn giữa theo chiều ngang */
+        white-space: pre-line; /* Giữ nguyên xuống dòng */
+        flex-direction: column; /* Xếp nội dung theo chiều dọc */
+        text-align: center; /* Căn giữa chữ */
+    ">
+        <div>
+        🔥 Survive until the music is over 🔥
+        </div>
+        <p style="font-size: 16px; font-weight: normal;">
+            You can play Running Dinosaur while waiting for the music (up to 5 minutes).  
+            Press Space to start the game online and jump your Dino, use down arrow (↓) to duck.
+        </p>
+    </div>
+    
+    <style type="text/css">
+    iframe { 
+        margin-top: 20px;
+        position: absolute; 
+        width: 100%; 
+        height: 100%; 
+        z-index: 100; 
+    }
+    </style>
+    """
+    st.components.v1.html(game_html, height=320)
+
+
+# Phần chính của ứng dụng
+async def Feel_The_Beat():
     st.title("🎵 Feel The Beat - Tạo Nhạc AI")
 
-    # Nhập API Token
-    api_token = st.text_input("🔑 Nhập API Token:", type="password")
+    api_token = "2d551602f3a39d8f3e219db2c94d7659"
+    custom_mode = st.toggle("Custom Mode", value=True)
+    if "lyrics" in st.session_state:
+        lyrics = st.session_state.lyrics
+        prompt = st.text_area("💡 Enter a description of the track you want to create:", 
+                              value=lyrics, 
+                              placeholder="A relaxing piano piece with a gentle melody...")
+    else:
+        prompt = st.text_area("💡 Enter a description of the track you want to create:", 
+                              placeholder="A relaxing piano piece with a gentle melody...")
 
-    # Nhập mô tả nhạc cần tạo
-    prompt = st.text_area("💡 Nhập mô tả bản nhạc bạn muốn tạo:", 
-    placeholder="Một bản nhạc piano thư giãn với giai điệu nhẹ nhàng...")
+    if custom_mode == True:
+        # Danh sách gợi ý phong cách nhạc
+        music_styles = ["Classical", "Jazz", "Lo-fi", "Ambient", "Rock"]
 
-    # Danh sách gợi ý phong cách nhạc
-    music_styles = ["Classical", "Jazz", "Lo-fi", "Ambient", "Rock"]
+        # Nếu chưa có session_state cho style_list, đặt giá trị mặc định
+        if "style_list" not in st.session_state:
+            st.session_state["style_list"] = []
 
-    # Nếu chưa có session_state cho style_list, đặt giá trị mặc định
-    if "style_list" not in st.session_state:
-        st.session_state["style_list"] = []
+        # Hộp nhập phong cách nhạc (hiển thị danh sách dưới dạng chuỗi)
+        style = st.text_input("🎼 Enter music style:", ", ".join(st.session_state["style_list"]))
 
-    # Hộp nhập phong cách nhạc (hiển thị danh sách dưới dạng chuỗi)
-    style = st.text_input("🎼 Nhập phong cách nhạc:", ", ".join(st.session_state["style_list"]))
+        # Hiển thị các nút theo hàng ngang
+        cols = st.columns(len(music_styles))
 
-    # Hiển thị các nút theo hàng ngang
-    cols = st.columns(len(music_styles))
-
-    for i, music in enumerate(music_styles):
-        with cols[i]:
-            if st.button(music, use_container_width=True):
-                if music in st.session_state["style_list"]:
-                    # Nếu đã có trong danh sách thì xóa đi (bỏ chọn)
-                    st.session_state["style_list"].remove(music)
-                else:
-                    # Nếu chưa có thì thêm vào danh sách
-                    st.session_state["style_list"].append(music)
-                
-                # Cập nhật text box với danh sách mới
-                st.rerun()  # Cập nhật giao diện ngay lập tức
-
-    title = st.text_input("🎶 Đặt tên bản nhạc:", "My AI Music")
-    instrumental = st.checkbox("🎻 Nhạc không lời?", value=False)
-
-    # Xử lý khi bấm nút
-    if st.button("🎧 Feel The Beat"):
-        if not api_token or not prompt:
-            st.warning("⚠️ Vui lòng nhập API Token và mô tả nhạc!")
-        else:
-            # Gửi yêu cầu API tạo nhạc
-            api_url = "https://apibox.erweima.ai/api/v1/generate"
-            headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
-            data = {
-                "prompt": prompt,
-                "style": style,
-                "title": title,
-                "customMode": True,
-                "instrumental": instrumental,
-                "model": "V3_5",
-                "callBackUrl": "https://api.example.com/callback"
-            }
-
-            with st.spinner("🎼 Đang tạo nhạc..."):
-                response = requests.post(api_url, json=data, headers=headers)
-
-            # Xử lý kết quả
-            if response.status_code == 200:
-                task_id = response.json().get("data", {}).get("taskId", None)
-                st.write("📌 Task ID:", task_id)  # Debug Task ID
-
-                if not task_id:
-                    st.error("🚨 API không trả về Task ID!")
-                else:
-                    check_url = f"https://apibox.erweima.ai/api/v1/generate/record-info?taskId={task_id}"
-                    headers = {
-                        "Authorization": f"Bearer {api_token}",
-                        "Accept": "application/json"
-                    }
-
-                    st.write("nhạc đang tạo vui lòng chờ 5 phút")
-                    game_html = """
-                    <iframe src="https://chromedino.com/color/" frameborder="0" scrolling="no" width="100%" height="100%" loading="lazy"></iframe>
-                        <div style="
-                            position: absolute;
-                            top: 0;
-                            left: 0;
-                            width: 100%;
-
-                            background-color: #0E1117; /* Màu nền */
-                            color: #FFA500; /* Màu chữ cam */
-                            font-size: 24px; /* Kích thước chữ */
-                            font-weight: bold; /* Đậm chữ */
-                            z-index: 102;
-                            display: flex; /* Căn giữa */
-                            align-items: center; /* Căn giữa theo chiều dọc */
-                            justify-content: center; /* Căn giữa theo chiều ngang */
-                            white-space: pre-line; /* Giữ nguyên xuống dòng */
-                            flex-direction: column; /* Xếp nội dung theo chiều dọc */
-                            text-align: center; /* Căn giữa chữ */
-                        ">
-                        <div>
-                        🔥 Chào mừng đến với T-Rex Game! 🔥
-                        </div>
-                        <p style="
-                            font-size: 16px; /* Nhỏ hơn tiêu đề */
-                            font-weight: normal; /* Không in đậm */
-                        ">
-                            You can play Running Dinosaur while waiting for the music (up to 5 minutes).  
-                            Press Space to start the game online and jump your Dino, use down arrow (↓) to duck.
-                        </p>
-                        </div>
-                        
-                        <style type="text/css">
-                        iframe { 
-                            margin-top: 20px;
-                            position: absolute; 
-                            width: 100%; 
-                            height: 100%; 
-                            z-index: 100; 
-                        }
-                        </style>
-                    """
-                    st.components.v1.html(game_html, height=320)
-                    audio_url = None
-
-                    for _ in range(60):  # Lặp tối đa 60 lần (5 phút)
-                        check_response = requests.get(check_url, headers=headers)
-
-                        if check_response.status_code == 200:
-                            try:
-                                music_info = check_response.json()
-                                data = music_info.get("data", {})
-                                status = data.get("status", "PENDING")  # Kiểm tra trạng thái
-
-                                if status == "SUCCESS":
-                                    response_data = data.get("response", {})
-                                    suno_data = response_data.get("sunoData", [])
-
-                                    if suno_data and isinstance(suno_data, list):
-                                        audio_url = suno_data[0].get("audioUrl")
-                                        img_url = suno_data[0].get("imageUrl",)
-                                        title_data = suno_data[0].get("title")
-                                if audio_url:
-                                    break  # Dừng vòng lặp nếu đã có nhạc
-
-                            except Exception as e:
-                                st.error(f"🚨 Lỗi khi xử lý JSON từ API: {e}")
-                                st.write("📄 Nội dung API trả về:", check_response.text)
-                                break  # Nếu lỗi, dừng luôn
-                        time.sleep(5)  # Chờ 5 giây trước khi kiểm tra lại
-
-                    # Kiểm tra kết quả sau vòng lặp
-                    if audio_url:
-                        status = st.empty()
-                        st.success(f"🎵 Nhạc đã sẵn sàng: [{title}]({audio_url})")
-                        image = img_url
-                        title = title_data  # Thay bằng tiêu đề bài hát
-                        # Thiết kế giao diện phát nhạc đẹp
-                        st.markdown(
-                            """
-                            <style>
-                                .audio-container {
-                                    text-align: left;
-                                    padding: 20px;
-                                    position: relative;
-                                }
-                                audio {
-                                    width: 100%;
-                                    border: 4px solid #ff7e5f;
-                                    border-radius: 30px;
-                                    box-shadow: 0px 0px 15px #feb47b;
-                                }
-
-                                /* Tùy chỉnh thanh tiến trình */
-                                audio::-webkit-media-controls-timeline {
-                                    background: linear-gradient(90deg, #ff7e5f, #feb47b) !important;
-                                    border-radius: 30px;
-                                    height: 6px;
-                                    box-shadow: 0px 0px 10px rgba(255, 126, 95, 0.8);
-                                    transition: all 0.3s ease-in-out;
-                                    padding:1px;
-                                }
-                                
-                                /* Chỉnh màu nút Play/Pause */
-                                audio::-webkit-media-controls-play-button {
-                                    background-color: #ff7e5f !important;
-                                    box-shadow: 0px 0px 10px rgba(255, 126, 95, 0.8);
-                                    border-radius: 50%;
-                                }
-
-                                audio::-webkit-media-controls-volume-slider {
-                                    background: #ff7e5f !important;
-                                }
-
-                                /* Thiết kế tiêu đề bài hát */
-                                .song-title {
-                                    font-size: 20px;
-                                    font-weight: bold;
-                                    color: white;
-                                    text-align: left;
-                                    margin-top: 10px;
-                                    text-shadow: 0px 0px 10px rgba(255, 126, 95, 0.8);
-                                }
-                            </style>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-                        col1, col2 = st.columns([1, 5])  # Cột trái (1 phần), cột phải (2 phần)
-                        with col1:
-                        # Chèn hình ảnh bài hát
-                            st.image(image, width=150)
-                        with col2:
-                            # Hiển thị tiêu đề bài hát
-                            st.markdown(f'<div class="song-title">{title}</div>', unsafe_allow_html=True)
-                            
-                            # Hiển thị trình phát nhạc
-                            st.markdown('<div class="audio-container">', unsafe_allow_html=True)
-                            st.audio(audio_url, format="audio/mp3")
-                            st.markdown('</div>', unsafe_allow_html=True)
+        for i, music in enumerate(music_styles):
+            with cols[i]:
+                if st.button(music, use_container_width=True):
+                    if music in st.session_state["style_list"]:
+                        # Nếu đã có trong danh sách thì xóa đi (bỏ chọn)
+                        st.session_state["style_list"].remove(music)
                     else:
-                        st.warning("⏳ Nhạc chưa sẵn sàng sau 5 phút, hãy thử lại sau!")
+                        # Nếu chưa có thì thêm vào danh sách
+                        st.session_state["style_list"].append(music)
+                    
+                    # Cập nhật text box với danh sách mới
+                    st.rerun()  # Cập nhật giao diện ngay lập tức
+
+        title = st.text_input("🎶 Name the song:", "My AI Music")
+        instrumental = st.checkbox("🎻 Instrumental", value=False)
+    # Xóa music_data khi người dùng bấm nút
+    if st.button("🎧 Feel The Beat"):
+        if "music_data" in st.session_state:
+            del st.session_state["music_data"]  # Xóa music_data trong session_state trước khi tạo nhạc
+
+        if not api_token or not prompt:
+            st.warning("⚠️Please enter music description!")
+        else:
+            task_id = await generate_music(api_token, prompt, custom_mode, "", "", False)
+            if task_id:
+                render_game_html()  # Hiển thị trò chơi chờ nhạc
+                
+                music_data = await check_music_status(api_token, task_id)
+                
+                if music_data:
+                    st.session_state["music_data"] = music_data  # Lưu nhạc vào session_state
+                    for audio_url, title, image_url in music_data:
+                        st.success(f"🎵 Your music is ready: [{title}]")
+                        render_music_player(title, audio_url, image_url)
+                else:
+                    st.warning("⏳ Music not ready after 5 minutes, please try again later!")
             else:
-                st.error(f"🚨 Lỗi API: {response.json().get('error', 'Không rõ lỗi!')}")
+                st.error("🚨 Error in music generation!")
+
+    # Kiểm tra nếu có nhạc đã tạo trong session_state
+    if "music_data" in st.session_state:
+        music_data = st.session_state["music_data"]
+        for audio_url, title, image_url in music_data:
+            st.success(f"🎵 Your music is ready: [{title}]")
+            render_music_player(title, audio_url, image_url)
+if menu == "Feel The Beat":
+    asyncio.run(Feel_The_Beat())

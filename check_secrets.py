@@ -1,7 +1,12 @@
 import streamlit as st
+from supabase import create_client
 
-supabase_url = st.secrets["SUPABASE_URL"]
-supabase_key = st.secrets["SUPABASE_KEY"]
+# 🟢 Đọc thông tin từ secrets.toml (chỉ hoạt động nếu file đã được thiết lập)
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
-print("✅ SUPABASE_URL:", supabase_url)
-print("✅ SUPABASE_KEY:", supabase_key[:10] + "...")
+# 🟢 Kết nối với Supabase
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# 🛠 Kiểm tra kết nối
+st.write("🔍 Supabase đã kết nối thành công!")
