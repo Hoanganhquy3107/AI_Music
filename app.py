@@ -34,7 +34,7 @@ st.set_page_config(page_title="Music AI Website", layout="wide")
 openai.api_key = st.secrets["general"]["OPENAI_API_KEY"]
 
 # Khởi tạo client OpenAI
-client = openai
+client = openai.api_key
 
 # Kết nối Supabase
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
