@@ -191,8 +191,8 @@ with st.sidebar:
     # Menu chính
     menu = option_menu(
         menu_title="Navigation",
-        options=["Home", "Create Lyrics", "Feel The Beat", "Classify", "Explore", "Library", "Search"],
-        icons=["house", "music-note-list", "soundwave", "graph-up", "globe", "book", "search"],
+        options=["Home", "Create Lyrics", "Feel The Beat", "Classify", "Explore", "Library", "Search", "Quản lý thanh toán"],  # Thêm "Quản lý thanh toán"
+        icons=["house", "music-note-list", "soundwave", "graph-up", "globe", "book", "search", "credit-card"],  # Thêm icon cho "Quản lý thanh toán"
         menu_icon="menu-button-wide",
         default_index=0,
         styles={
@@ -204,7 +204,7 @@ with st.sidebar:
     )
 
 # 🚫 Chặn menu nếu chưa đăng nhập
-protected_menus = ["Create Lyrics", "Feel The Beat", "Classify", "Explore", "Library"]
+protected_menus = ["Create Lyrics", "Feel The Beat", "Classify", "Explore", "Library", "Quản lý thanh toán"]
 
 if menu in protected_menus and "user" not in st.session_state:
     st.warning("🔒 Vui lòng đăng nhập để truy cập chức năng này.")
@@ -617,3 +617,117 @@ async def Feel_The_Beat():
             render_music_player(title, audio_url, image_url)
 if menu == "Feel The Beat":
     asyncio.run(Feel_The_Beat())
+
+# =========================== QUẢN LÝ THANH TOÁN ===========================
+if menu == "Quản lý thanh toán":
+    st.title("💳 Quản lý thanh toán")
+
+    # Phần 1: Hiển thị số dư tài khoản
+    user_id = st.session_state.user['id']
+    wallet = supabase.table("credits_wallet").select("credit").eq("user_id", user_id).execute()
+    credit_balance = wallet.data[0]["credit"] if wallet.data else 0
+
+    st.subheader("Thông tin số dư tài khoản")
+    st.write(f"💰 Số tín dụng còn lại: **{credit_balance} tín dụng**")
+
+    # Phần 2: Mua tín dụng
+    st.subheader("Mua tín dụng")
+    credit_options = {
+        "1000 tín dụng - 5$": (1000, 5),
+        "10000 tín dụng - 50$": (10000, 50),
+        "105000 tín dụng - 500$": (105000, 500),
+        "275000 tín dụng - 1250$": (275000, 1250)
+    }
+    selected_option = st.selectbox("Chọn gói tín dụng muốn mua:", list(credit_options.keys()))
+    selected_credits, amount = credit_options[selected_option]
+
+    if st.button("Thanh toán qua MoMo"):
+        momo_endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
+        momo_partner_code = "MOMO"
+        momo_access_key = "F8BBA842ECF85"
+        momo_secret_key = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
+        order_id = f"order_{int(time.time())}"
+        redirect_url = "https://your-redirect-url.com"
+        ipn_url = "https://your-ipn-url.com"
+        request_id = f"req_{int(time.time())}"
+        order_info = f"Mua {selected_credits} tín dụng"
+        amount_str = str(amount * 1000)  # Chuyển đổi sang VND (VD: 5$ -> 5000 VND)
+
+        # Tạo chữ ký (signature)
+        raw_signature = f"accessKey={momo_access_key}&amount={amount_str}&extraData=&ipnUrl={ipn_url}&orderId={order_id}&orderInfo={order_info}&partnerCode={momo_partner_code}&redirectUrl={redirect_url}&requestId={request_id}&requestType=captureWallet"
+        import hmac, hashlib
+        signature = hmac.new(momo_secret_key.encode(), raw_signature.encode(), hashlib.sha256).hexdigest()
+
+        # Tạo yêu cầu thanh toán
+        payload = {
+            "partnerCode": momo_partner_code,
+            "accessKey": momo_access_key,
+            "requestId": request_id,
+            "amount": amount_str,
+            "orderId": order_id,
+            "orderInfo": order_info,
+            "redirectUrl": redirect_url,
+            "ipnUrl": ipn_url,
+            "extraData": "",
+            "requestType": "captureWallet",
+            "signature": signature
+        }
+        response = requests.post(momo_endpoint, json=payload)
+
+        if response.status_code == 200:
+            payment_url = response.json().get("payUrl")
+            st.markdown(f"[Nhấn vào đây để thanh toán qua MoMo]({payment_url})")
+        else:
+            st.error("Không thể tạo yêu cầu thanh toán. Vui lòng thử lại.")
+
+    # Xác nhận thanh toán (giả lập)
+    if st.button("Xác nhận thanh toán (giả lập)") and selected_credits > 0:
+        new_balance = credit_balance + selected_credits
+        supabase.table("credits_wallet").update({"credit": new_balance}).eq("user_id", user_id).execute()
+        supabase.table("credits_history").insert({
+            "user_id": user_id,
+            "action": "add",
+            "amount": selected_credits,
+            "note": f"Mua {selected_credits} tín dụng qua MoMo"
+        }).execute()
+        supabase.table("transactions").insert({
+            "user_id": user_id,
+            "credits_added": selected_credits,
+            "payment_method": "MoMo",
+            "note": f"Mua {selected_credits} tín dụng"
+        }).execute()
+        st.success(f"✅ Thanh toán thành công! Số dư hiện tại: {new_balance} tín dụng.")
+
+# =========================== KIỂM TRA SỬ DỤNG MIỄN PHÍ ===========================
+if menu == "Feel The Beat":
+    # Kiểm tra số lần sử dụng miễn phí
+    if "free_uses" not in st.session_state:
+        st.session_state.free_uses = 3  # Mặc định 3 lần miễn phí
+
+    if st.session_state.free_uses > 0:
+        st.info(f"Bạn còn {st.session_state.free_uses} lần sử dụng miễn phí.")
+        st.session_state.free_uses -= 1
+    else:
+        user_id = st.session_state.user['id']
+        wallet = supabase.table("credits_wallet").select("credit").eq("user_id", user_id).execute()
+        credit_balance = wallet.data[0]["credit"] if wallet.data else 0
+
+        if credit_balance >= 25:
+            new_balance = credit_balance - 25
+            supabase.table("credits_wallet").update({"credit": new_balance}).eq("user_id", user_id).execute()
+            supabase.table("credits_history").insert({
+                "user_id": user_id,
+                "action": "deduct",
+                "amount": 25,
+                "note": "Sử dụng tính năng Feel The Beat"
+            }).execute()
+            supabase.table("transactions").insert({
+                "user_id": user_id,
+                "credits_used": 25,
+                "payment_method": "Usage Fee",
+                "note": "Sử dụng tính năng Feel The Beat"
+            }).execute()
+            st.success(f"Đã trừ 25 tín dụng. Số dư còn lại: {new_balance} tín dụng.")
+        else:
+            st.error("Không đủ tín dụng để sử dụng tính năng này.")
+            st.stop()
