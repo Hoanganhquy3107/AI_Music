@@ -669,8 +669,8 @@ if menu == "Quản lý thanh toán":
         momo_access_key = "F8BBA842ECF85"
         momo_secret_key = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
         order_id = f"order_{int(time.time())}"
-        redirect_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"
-        ipn_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"
+        redirect_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/?partnerCode=MOMO&orderId=order_1743369654&requestId=req_1743369654&amount=50000&orderInfo=Mua+10000+t%C3%ADn+d%E1%BB%A5ng&orderType=momo_wallet&transId=3297721969&resultCode=0&message=Successful.&payType=qr&responseTime=1743369695731&extraData=&signature=ee1bac28bfee60bd25106cb366a7103853c65626186430e3152af952768d454d"
+        ipn_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/?partnerCode=MOMO&orderId=order_1743369654&requestId=req_1743369654&amount=50000&orderInfo=Mua+10000+t%C3%ADn+d%E1%BB%A5ng&orderType=momo_wallet&transId=3297721969&resultCode=0&message=Successful.&payType=qr&responseTime=1743369695731&extraData=&signature=ee1bac28bfee60bd25106cb366a7103853c65626186430e3152af952768d454d/"
         request_id = f"req_{int(time.time())}"
         order_info = f"Mua {selected_credits} tín dụng"
 
