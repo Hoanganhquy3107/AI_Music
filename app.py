@@ -647,8 +647,8 @@ if menu == "Quản lý thanh toán":
         momo_access_key = "F8BBA842ECF85"
         momo_secret_key = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
         order_id = f"order_{int(time.time())}"
-        redirect_url = "https://your-redirect-url.com"
-        ipn_url = "https://your-ipn-url.com"
+        redirect_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"
+        ipn_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"
         request_id = f"req_{int(time.time())}"
         order_info = f"Mua {selected_credits} tín dụng"
         amount_str = str(amount * 1000)  # Chuyển đổi sang VND (VD: 5$ -> 5000 VND)
