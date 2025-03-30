@@ -2,7 +2,6 @@
 streamlit==1.43.2          # ✅ Khớp với version bạn đã cài qua pip show (bạn ghi 1.30.0 -> mình thay thành 1.43.2)
 streamlit-option-menu==0.3.6
 python-dotenv==0.21.1
-supabase-py==1.0.3
 
 # ==== AI / NLP / Deep Learning ====
 openai>=1.3.0              # ⚠️ Giữ nguyên nhưng cần >=1.3.0 để dùng GPT-4, GPT-4o
