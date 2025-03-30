@@ -2,6 +2,7 @@ import os
 import bcrypt
 import re  # Thêm thư viện kiểm tra email hợp lệ
 from openai import OpenAI
+import openai
 import numpy as np
 import streamlit as st
 import base64
