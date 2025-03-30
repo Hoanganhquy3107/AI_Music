@@ -623,15 +623,18 @@ if menu == "Quản lý thanh toán":
     st.title("💳 Quản lý thanh toán")
 
     # Phần 1: Hiển thị số dư tài khoản
-    user_id = st.session_state.user['id']
-    wallet = supabase.table("credits_wallet").select("credit").eq("user_id", user_id).execute()
-    credit_balance = wallet.data[0]["credit"] if wallet.data else 0
+    if "user" in st.session_state:
+        user_id = st.session_state.user['id']
+        wallet = supabase.table("credits_wallet").select("credit").eq("user_id", user_id).execute()
+        credit_balance = wallet.data[0]["credit"] if wallet.data else 0
+    else:
+        st.error("❌ Bạn cần đăng nhập để quản lý thanh toán.")
+        st.stop()
 
     st.subheader("Thông tin số dư tài khoản")
     st.write(f"💰 Số tín dụng còn lại: **{credit_balance} tín dụng**")
 
     # Phần 2: Mua tín dụng
-    st.subheader("Mua tín dụng")
     credit_options = {
         "1000 tín dụng - 5$": (1000, 5),
         "10000 tín dụng - 50$": (10000, 50),
@@ -664,13 +667,16 @@ if menu == "Quản lý thanh toán":
             return 23500  # Tỷ giá mặc định nếu có lỗi
 
     if st.button("Thanh toán qua MoMo"):
+        # Save session state before redirecting
+        st.session_state["redirect_after_payment"] = True
+
         momo_endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
         momo_partner_code = "MOMO"
         momo_access_key = "F8BBA842ECF85"
         momo_secret_key = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
         order_id = f"order_{int(time.time())}"
-        redirect_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/?partnerCode=MOMO&orderId=order_1743369654&requestId=req_1743369654&amount=50000&orderInfo=Mua+10000+t%C3%ADn+d%E1%BB%A5ng&orderType=momo_wallet&transId=3297721969&resultCode=0&message=Successful.&payType=qr&responseTime=1743369695731&extraData=&signature=ee1bac28bfee60bd25106cb366a7103853c65626186430e3152af952768d454d"
-        ipn_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/?partnerCode=MOMO&orderId=order_1743369654&requestId=req_1743369654&amount=50000&orderInfo=Mua+10000+t%C3%ADn+d%E1%BB%A5ng&orderType=momo_wallet&transId=3297721969&resultCode=0&message=Successful.&payType=qr&responseTime=1743369695731&extraData=&signature=ee1bac28bfee60bd25106cb366a7103853c65626186430e3152af952768d454d/"
+        redirect_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"
+        ipn_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"
         request_id = f"req_{int(time.time())}"
         order_info = f"Mua {selected_credits} tín dụng"
 
@@ -711,28 +717,28 @@ if menu == "Quản lý thanh toán":
             if payment_url:
                 # Tự động chuyển hướng đến cổng thanh toán MoMo
                 st.markdown(f"<meta http-equiv='refresh' content='0; url={payment_url}'>", unsafe_allow_html=True)
+                st.stop()
 
-                # Kiểm tra trạng thái thanh toán
-                with st.spinner("⏳ Đang kiểm tra trạng thái thanh toán..."):
-                    time.sleep(10)  # Chờ một khoảng thời gian để thanh toán hoàn tất
-                    payment_status = supabase.table("transactions").select("status").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
-                    if payment_status.data and payment_status.data[0]["status"] == "success":
-                        # Cập nhật số dư tín dụng
-                        new_balance = credit_balance + selected_credits
-                        supabase.table("credits_wallet").update({"credit": new_balance}).eq("user_id", user_id).execute()
-                        supabase.table("credits_history").insert({
-                            "user_id": user_id,
-                            "action": "add",
-                            "amount": selected_credits,
-                            "note": f"Mua {selected_credits} tín dụng qua MoMo"
-                        }).execute()
-                        st.success(f"✅ Thanh toán thành công! Số dư hiện tại: {new_balance} tín dụng.")
-                    else:
-                        st.error("❌ Thanh toán chưa hoàn tất hoặc thất bại. Vui lòng thử lại.")
+    # Check if returning from payment
+    if st.session_state.get("redirect_after_payment"):
+        st.session_state["redirect_after_payment"] = False  # Reset flag
+        with st.spinner("⏳ Đang kiểm tra trạng thái thanh toán..."):
+            time.sleep(10)  # Wait for payment to process
+            payment_status = supabase.table("transactions").select("status").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+            if payment_status.data and payment_status.data[0]["status"] == "success":
+                # Update credit balance
+                new_balance = credit_balance + selected_credits
+                supabase.table("credits_wallet").update({"credit": new_balance}).eq("user_id", user_id).execute()
+                supabase.table("credits_history").insert({
+                    "user_id": user_id,
+                    "action": "add",
+                    "amount": selected_credits,
+                    "note": f"Mua {selected_credits} tín dụng qua MoMo"
+                }).execute()
+                st.session_state["credit_balance"] = new_balance  # Update session state
+                st.success(f"✅ Thanh toán thành công! Số dư hiện tại: {new_balance} tín dụng.")
             else:
-                st.error("Không thể lấy URL thanh toán từ MoMo. Vui lòng thử lại.")
-        else:
-            st.error("Không thể tạo yêu cầu thanh toán. Vui lòng thử lại.")
+                st.error("❌ Thanh toán chưa hoàn tất hoặc thất bại. Vui lòng thử lại.")
 
 # =========================== KIỂM TRA SỬ DỤNG MIỄN PHÍ ===========================
 if menu == "Feel The Beat":
