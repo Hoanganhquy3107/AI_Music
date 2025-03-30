@@ -669,6 +669,7 @@ if menu == "Quản lý thanh toán":
     if st.button("Thanh toán qua MoMo"):
         # Save session state before redirecting
         st.session_state["redirect_after_payment"] = True
+        st.session_state["payment_in_progress"] = True  # Track payment state
 
         momo_endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
         momo_partner_code = "MOMO"
@@ -720,8 +721,9 @@ if menu == "Quản lý thanh toán":
                 st.stop()
 
     # Check if returning from payment
-    if st.session_state.get("redirect_after_payment"):
+    if st.session_state.get("redirect_after_payment") and st.session_state.get("payment_in_progress"):
         st.session_state["redirect_after_payment"] = False  # Reset flag
+        st.session_state["payment_in_progress"] = False  # Prevent repeated checks
         with st.spinner("⏳ Đang kiểm tra trạng thái thanh toán..."):
             time.sleep(10)  # Wait for payment to process
             payment_status = supabase.table("transactions").select("status").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
@@ -737,8 +739,11 @@ if menu == "Quản lý thanh toán":
                 }).execute()
                 st.session_state["credit_balance"] = new_balance  # Update session state
                 st.success(f"✅ Thanh toán thành công! Số dư hiện tại: {new_balance} tín dụng.")
+                st.experimental_rerun()  # Redirect to refresh the page
             else:
                 st.error("❌ Thanh toán chưa hoàn tất hoặc thất bại. Vui lòng thử lại.")
+                st.experimental_rerun()  # Redirect to refresh the page
+
 
 # =========================== KIỂM TRA SỬ DỤNG MIỄN PHÍ ===========================
 if menu == "Feel The Beat":
