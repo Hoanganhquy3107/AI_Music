@@ -641,6 +641,28 @@ if menu == "Quản lý thanh toán":
     selected_option = st.selectbox("Chọn gói tín dụng muốn mua:", list(credit_options.keys()))
     selected_credits, amount = credit_options[selected_option]
 
+    def get_usd_to_vnd_exchange_rate():
+        """Lấy tỷ giá USD-VND từ API Layer (Live Exchange Rates)."""
+        try:
+            api_key = "qf4h6PVtQlWfqPBrQEgStY3eHeEuk88E"  # API key của bạn
+            url = "https://api.apilayer.com/currency_data/live"
+            params = {"source": "USD", "currencies": "VND"}
+            headers = {"apikey": api_key}
+
+            # Gửi yêu cầu đến API
+            response = requests.get(url, headers=headers, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                exchange_rate = data["quotes"]["USDVND"]
+                st.write(f"Tỷ giá USD-VND: {exchange_rate}")  # Hiển thị tỷ giá trên giao diện Streamlit
+                return exchange_rate
+            else:
+                st.error("Không thể lấy tỷ giá USD-VND. Sử dụng tỷ giá mặc định.")
+                return 23500  # Tỷ giá mặc định nếu API không hoạt động
+        except Exception as e:
+            st.error(f"Lỗi khi lấy tỷ giá: {e}")
+            return 23500  # Tỷ giá mặc định nếu có lỗi
+
     if st.button("Thanh toán qua MoMo"):
         momo_endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
         momo_partner_code = "MOMO"
@@ -651,7 +673,16 @@ if menu == "Quản lý thanh toán":
         ipn_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"
         request_id = f"req_{int(time.time())}"
         order_info = f"Mua {selected_credits} tín dụng"
-        amount_str = str(amount * 1000)  # Chuyển đổi sang VND (VD: 5$ -> 5000 VND)
+
+        # Lấy tỷ giá USD-VND từ API Layer
+        exchange_rate = get_usd_to_vnd_exchange_rate()
+        amount_vnd = amount * exchange_rate  # Chuyển đổi từ USD sang VND
+        amount_str = str(int(amount_vnd))  # Đảm bảo số tiền là số nguyên
+
+        # Hiển thị giá trị đã chuyển đổi trên giao diện Streamlit
+        st.write(f"Số tiền thanh toán (USD): {amount} USD")
+        st.write(f"Số tiền thanh toán (VND): {amount_vnd} VND")
+        st.write(f"Số tiền gửi đến MoMo: {amount_str} VND")
 
         # Tạo chữ ký (signature)
         raw_signature = f"accessKey={momo_access_key}&amount={amount_str}&extraData=&ipnUrl={ipn_url}&orderId={order_id}&orderInfo={order_info}&partnerCode={momo_partner_code}&redirectUrl={redirect_url}&requestId={request_id}&requestType=captureWallet"
@@ -663,7 +694,7 @@ if menu == "Quản lý thanh toán":
             "partnerCode": momo_partner_code,
             "accessKey": momo_access_key,
             "requestId": request_id,
-            "amount": amount_str,
+            "amount": amount_str,  # Sử dụng số tiền đã chuyển đổi sang VND
             "orderId": order_id,
             "orderInfo": order_info,
             "redirectUrl": redirect_url,
@@ -674,29 +705,34 @@ if menu == "Quản lý thanh toán":
         }
         response = requests.post(momo_endpoint, json=payload)
 
+
         if response.status_code == 200:
             payment_url = response.json().get("payUrl")
-            st.markdown(f"[Nhấn vào đây để thanh toán qua MoMo]({payment_url})")
+            if payment_url:
+                # Tự động chuyển hướng đến cổng thanh toán MoMo
+                st.markdown(f"<meta http-equiv='refresh' content='0; url={payment_url}'>", unsafe_allow_html=True)
+
+                # Kiểm tra trạng thái thanh toán
+                with st.spinner("⏳ Đang kiểm tra trạng thái thanh toán..."):
+                    time.sleep(10)  # Chờ một khoảng thời gian để thanh toán hoàn tất
+                    payment_status = supabase.table("transactions").select("status").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+                    if payment_status.data and payment_status.data[0]["status"] == "success":
+                        # Cập nhật số dư tín dụng
+                        new_balance = credit_balance + selected_credits
+                        supabase.table("credits_wallet").update({"credit": new_balance}).eq("user_id", user_id).execute()
+                        supabase.table("credits_history").insert({
+                            "user_id": user_id,
+                            "action": "add",
+                            "amount": selected_credits,
+                            "note": f"Mua {selected_credits} tín dụng qua MoMo"
+                        }).execute()
+                        st.success(f"✅ Thanh toán thành công! Số dư hiện tại: {new_balance} tín dụng.")
+                    else:
+                        st.error("❌ Thanh toán chưa hoàn tất hoặc thất bại. Vui lòng thử lại.")
+            else:
+                st.error("Không thể lấy URL thanh toán từ MoMo. Vui lòng thử lại.")
         else:
             st.error("Không thể tạo yêu cầu thanh toán. Vui lòng thử lại.")
-
-    # Xác nhận thanh toán (giả lập)
-    if st.button("Xác nhận thanh toán (giả lập)") and selected_credits > 0:
-        new_balance = credit_balance + selected_credits
-        supabase.table("credits_wallet").update({"credit": new_balance}).eq("user_id", user_id).execute()
-        supabase.table("credits_history").insert({
-            "user_id": user_id,
-            "action": "add",
-            "amount": selected_credits,
-            "note": f"Mua {selected_credits} tín dụng qua MoMo"
-        }).execute()
-        supabase.table("transactions").insert({
-            "user_id": user_id,
-            "credits_added": selected_credits,
-            "payment_method": "MoMo",
-            "note": f"Mua {selected_credits} tín dụng"
-        }).execute()
-        st.success(f"✅ Thanh toán thành công! Số dư hiện tại: {new_balance} tín dụng.")
 
 # =========================== KIỂM TRA SỬ DỤNG MIỄN PHÍ ===========================
 if menu == "Feel The Beat":
