@@ -720,29 +720,30 @@ if menu == "Quản lý thanh toán":
                 st.markdown(f'<a href="{payment_url}" target="_blank">Click here to pay</a>', unsafe_allow_html=True)
                 st.stop()
 
-    # Check if returning from payment
-    if st.session_state.get("redirect_after_payment"):
-        st.session_state["redirect_after_payment"] = False  # Reset flag
-        with st.spinner("⏳ Đang kiểm tra trạng thái thanh toán..."):
-            time.sleep(5)  # Wait for payment to process
-            payment_status = supabase.table("transactions").select("status").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
-            if payment_status.data and payment_status.data[0]["status"] == "success":
-                # Update credit balance
-                new_balance = credit_balance + selected_credits
-                supabase.table("credits_wallet").update({"credit": new_balance}).eq("user_id", user_id).execute()
-                supabase.table("credits_history").insert({
-                    "user_id": user_id,
-                    "action": "add",
-                    "amount": selected_credits,
-                    "note": f"Mua {selected_credits} tín dụng qua MoMo"
-                }).execute()
-                st.session_state["credit_balance"] = new_balance  # Update session state
-                st.success(f"✅ Thanh toán thành công! Số dư hiện tại: {new_balance} tín dụng.")
-                st.experimental_rerun()  # Redirect to refresh the page
-            else:
-                st.error("❌ Thanh toán chưa hoàn tất hoặc thất bại. Vui lòng thử lại.")
-                st.experimental_rerun()  # Redirect to refresh the page
-
+   # Check if returning from payment
+if "redirect_after_payment" in st.session_state and st.session_state["redirect_after_payment"]:
+    st.session_state["redirect_after_payment"] = False  # Reset flag
+    with st.spinner("⏳ Đang kiểm tra trạng thái thanh toán..."):
+        time.sleep(5)  # Wait for payment to process
+        payment_status = supabase.table("transactions").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+        if payment_status.data and payment_status.data[0]["status"] == "success":
+            # Update credit balance
+            new_balance = credit_balance + selected_credits
+            supabase.table("transactions").insert({
+                "user_id": user_id,
+                "credits_before": credit_balance,
+                "credits_after": new_balance,
+                "credits_used": selected_credits,
+                "payment_method": "MoMo",
+                "status": "success",
+                "note": f"Mua {selected_credits} tín dụng qua MoMo"
+            }).execute()
+            st.session_state["credit_balance"] = new_balance  # Update session state
+            st.success(f"✅ Thanh toán thành công! Số dư hiện tại: {new_balance} tín dụng.")
+            st.experimental_rerun()  # Redirect to refresh the page
+        else:
+            st.error("❌ Thanh toán chưa hoàn tất hoặc thất bại. Vui lòng thử lại.")
+            st.experimental_rerun()  # Redirect to refresh the page
     # Prevent infinite redirects by ensuring the app does not loop back to the payment check
     if not st.session_state.get("payment_in_progress", False):
         st.session_state["payment_in_progress"] = False  # Ensure the flag is reset
