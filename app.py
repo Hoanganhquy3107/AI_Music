@@ -717,7 +717,7 @@ if menu == "Quản lý thanh toán":
             payment_url = response.json().get("payUrl")
             if payment_url:
                 # Tự động chuyển hướng đến cổng thanh toán MoMo
-                st.markdown(f"<meta http-equiv='refresh' content='0; url={payment_url}'>", unsafe_allow_html=True)
+                st.markdown(f'<a href="{payment_url}" target="_blank">Click here to pay</a>', unsafe_allow_html=True)
                 st.stop()
 
     # Check if returning from payment
