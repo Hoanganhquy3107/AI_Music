@@ -721,11 +721,10 @@ if menu == "Quản lý thanh toán":
                 st.stop()
 
     # Check if returning from payment
-    if st.session_state.get("redirect_after_payment") and st.session_state.get("payment_in_progress"):
+    if st.session_state.get("redirect_after_payment"):
         st.session_state["redirect_after_payment"] = False  # Reset flag
-        st.session_state["payment_in_progress"] = False  # Prevent repeated checks
         with st.spinner("⏳ Đang kiểm tra trạng thái thanh toán..."):
-            time.sleep(10)  # Wait for payment to process
+            time.sleep(5)  # Wait for payment to process
             payment_status = supabase.table("transactions").select("status").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
             if payment_status.data and payment_status.data[0]["status"] == "success":
                 # Update credit balance
@@ -744,6 +743,9 @@ if menu == "Quản lý thanh toán":
                 st.error("❌ Thanh toán chưa hoàn tất hoặc thất bại. Vui lòng thử lại.")
                 st.experimental_rerun()  # Redirect to refresh the page
 
+    # Prevent infinite redirects by ensuring the app does not loop back to the payment check
+    if not st.session_state.get("payment_in_progress", False):
+        st.session_state["payment_in_progress"] = False  # Ensure the flag is reset
 
 # =========================== KIỂM TRA SỬ DỤNG MIỄN PHÍ ===========================
 if menu == "Feel The Beat":
