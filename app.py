@@ -679,8 +679,7 @@ if menu == "Quản lý thanh toán":
         momo_access_key = "F8BBA842ECF85"
         momo_secret_key = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
         order_id = f"order_{int(time.time())}"
-        redirect_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"
-        ipn_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"
+        redirect_url = st.secrets["https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"]  # URL của ứng dụng Streamlit
         request_id = f"req_{int(time.time())}"
         order_info = f"Mua {selected_credits} tín dụng"
 
@@ -695,7 +694,7 @@ if menu == "Quản lý thanh toán":
         st.write(f"Số tiền gửi đến MoMo: {amount_str} VND")
 
         # Tạo chữ ký (signature)
-        raw_signature = f"accessKey={momo_access_key}&amount={amount_str}&extraData=&ipnUrl={ipn_url}&orderId={order_id}&orderInfo={order_info}&partnerCode={momo_partner_code}&redirectUrl={redirect_url}&requestId={request_id}&requestType=captureWallet"
+        raw_signature = f"accessKey={momo_access_key}&amount={amount_str}&extraData=&orderId={order_id}&orderInfo={order_info}&partnerCode={momo_partner_code}&redirectUrl={redirect_url}&requestId={request_id}&requestType=captureWallet"
         import hmac, hashlib
         signature = hmac.new(momo_secret_key.encode(), raw_signature.encode(), hashlib.sha256).hexdigest()
 
@@ -708,7 +707,6 @@ if menu == "Quản lý thanh toán":
             "orderId": order_id,
             "orderInfo": order_info,
             "redirectUrl": redirect_url,
-            "ipnUrl": ipn_url,
             "extraData": "",
             "requestType": "captureWallet",
             "signature": signature
@@ -718,7 +716,7 @@ if menu == "Quản lý thanh toán":
         if response.status_code == 200:
             payment_url = response.json().get("payUrl")
             if payment_url:
-                st.markdown(f'<a href="{payment_url}" target="_blank">Click here to pay</a>', unsafe_allow_html=True)
+                st.markdown(f'<a href="{payment_url}" target="_self">Click here to pay</a>', unsafe_allow_html=True)
                 st.session_state["redirect_after_payment"] = True  # Đánh dấu trạng thái thanh toán
                 st.stop()
 
