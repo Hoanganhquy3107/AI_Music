@@ -679,7 +679,7 @@ if menu == "Quản lý thanh toán":
         momo_access_key = "F8BBA842ECF85"
         momo_secret_key = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
         order_id = f"order_{int(time.time())}"
-        redirect_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/" # URL của ứng dụng Streamlit
+        redirect_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app"  # URL của ứng dụng Streamlit
         request_id = f"req_{int(time.time())}"
         order_info = f"Mua {selected_credits} tín dụng"
 
@@ -715,10 +715,14 @@ if menu == "Quản lý thanh toán":
 
         # Kiểm tra phản hồi từ MoMo
         if response.status_code == 200:
-            st.success("Yêu cầu thanh toán đã được gửi thành công. Vui lòng kiểm tra ứng dụng MoMo để hoàn tất thanh toán.")
+            response_data = response.json()
+            payment_url = response_data.get("payUrl")
+            if payment_url:
+                st.markdown(f'<a href="{payment_url}" target="_self">Click here to pay</a>', unsafe_allow_html=True)
+            else:
+                st.error("Không nhận được URL thanh toán từ MoMo. Vui lòng thử lại.")
         else:
             st.error(f"Lỗi khi gửi yêu cầu đến MoMo: {response.status_code}")
-            st.write(response.text)  # Hiển thị chi tiết lỗi
 
     # Kiểm tra trạng thái thanh toán
     if st.session_state.get("redirect_after_payment"):
