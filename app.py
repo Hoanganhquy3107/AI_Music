@@ -719,6 +719,7 @@ if menu == "Quản lý thanh toán":
             payment_url = response.json().get("payUrl")
             if payment_url:
                 st.markdown(f'<a href="{payment_url}" target="_blank">Click here to pay</a>', unsafe_allow_html=True)
+                st.session_state["redirect_after_payment"] = True  # Đánh dấu trạng thái thanh toán
                 st.stop()
 
     # Kiểm tra trạng thái thanh toán
