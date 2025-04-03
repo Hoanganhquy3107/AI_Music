@@ -625,14 +625,14 @@ if menu == "Quản lý thanh toán":
     # Phần 1: Hiển thị số dư tài khoản
     if "user" in st.session_state:
         user_id = st.session_state.user['id']
-        wallet = supabase.table("credits_wallet").select("credit").eq("user_id", user_id).execute()
-        credit_balance = wallet.data[0]["credit"] if wallet.data else 0
+        transactions = supabase.table("transactions").select("balance").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+        balance = transactions.data[0]["balance"] if transactions.data else 0
     else:
         st.error("❌ Bạn cần đăng nhập để quản lý thanh toán.")
         st.stop()
 
     st.subheader("Thông tin số dư tài khoản")
-    st.write(f"💰 Số tín dụng còn lại: **{credit_balance} tín dụng**")
+    st.write(f"💰 Số dư hiện tại: **{balance} tín dụng**")
 
     # Phần 2: Mua tín dụng
     credit_options = {
@@ -647,12 +647,11 @@ if menu == "Quản lý thanh toán":
     def get_usd_to_vnd_exchange_rate():
         """Lấy tỷ giá USD-VND từ API Layer (Live Exchange Rates)."""
         try:
-            api_key = "qf4h6PVtQlWfqPBrQEgStY3eHeEuk88E"  # API key của bạn
+            api_key = "qf4h6PVtQlWfqPBrQEgStY3eHeEuk88E"
             url = "https://api.apilayer.com/currency_data/live"
             params = {"source": "USD", "currencies": "VND"}
             headers = {"apikey": api_key}
 
-            # Gửi yêu cầu đến API
             response = requests.get(url, headers=headers, params=params)
             if response.status_code == 200:
                 data = response.json()
@@ -667,10 +666,6 @@ if menu == "Quản lý thanh toán":
             return 23500  # Tỷ giá mặc định nếu có lỗi
 
     if st.button("Thanh toán qua MoMo"):
-        # Save session state before redirecting
-        st.session_state["redirect_after_payment"] = True
-        st.session_state["payment_in_progress"] = True  # Track payment state
-
         momo_endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
         momo_partner_code = "MOMO"
         momo_access_key = "F8BBA842ECF85"
@@ -701,7 +696,7 @@ if menu == "Quản lý thanh toán":
             "partnerCode": momo_partner_code,
             "accessKey": momo_access_key,
             "requestId": request_id,
-            "amount": amount_str,  # Sử dụng số tiền đã chuyển đổi sang VND
+            "amount": amount_str,
             "orderId": order_id,
             "orderInfo": order_info,
             "redirectUrl": redirect_url,
@@ -712,41 +707,32 @@ if menu == "Quản lý thanh toán":
         }
         response = requests.post(momo_endpoint, json=payload)
 
-
         if response.status_code == 200:
             payment_url = response.json().get("payUrl")
             if payment_url:
-                # Tự động chuyển hướng đến cổng thanh toán MoMo
                 st.markdown(f'<a href="{payment_url}" target="_blank">Click here to pay</a>', unsafe_allow_html=True)
                 st.stop()
 
-   # Check if returning from payment
-if "redirect_after_payment" in st.session_state and st.session_state["redirect_after_payment"]:
-    st.session_state["redirect_after_payment"] = False  # Reset flag
-    with st.spinner("⏳ Đang kiểm tra trạng thái thanh toán..."):
-        time.sleep(5)  # Wait for payment to process
-        payment_status = supabase.table("transactions").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
-        if payment_status.data and payment_status.data[0]["status"] == "success":
-            # Update credit balance
-            new_balance = credit_balance + selected_credits
-            supabase.table("transactions").insert({
-                "user_id": user_id,
-                "credits_before": credit_balance,
-                "credits_after": new_balance,
-                "credits_used": selected_credits,
-                "payment_method": "MoMo",
-                "status": "success",
-                "note": f"Mua {selected_credits} tín dụng qua MoMo"
-            }).execute()
-            st.session_state["credit_balance"] = new_balance  # Update session state
-            st.success(f"✅ Thanh toán thành công! Số dư hiện tại: {new_balance} tín dụng.")
-            st.experimental_rerun()  # Redirect to refresh the page
-        else:
-            st.error("❌ Thanh toán chưa hoàn tất hoặc thất bại. Vui lòng thử lại.")
-            st.experimental_rerun()  # Redirect to refresh the page
-    # Prevent infinite redirects by ensuring the app does not loop back to the payment check
-    if not st.session_state.get("payment_in_progress", False):
-        st.session_state["payment_in_progress"] = False  # Ensure the flag is reset
+    # Kiểm tra trạng thái thanh toán
+    if st.session_state.get("redirect_after_payment"):
+        st.session_state["redirect_after_payment"] = False  # Reset flag
+        with st.spinner("⏳ Đang kiểm tra trạng thái thanh toán..."):
+            time.sleep(5)  # Chờ xử lý thanh toán
+            payment_status = supabase.table("transactions").select("status").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+            if payment_status.data and payment_status.data[0]["status"] == "success":
+                new_balance = balance + selected_credits
+                supabase.table("transactions").insert({
+                    "user_id": user_id,
+                    "credits_added": selected_credits,
+                    "balance": new_balance,
+                    "payment_method": "MoMo",
+                    "note": f"Mua {selected_credits} tín dụng"
+                }).execute()
+                st.success(f"✅ Thanh toán thành công! Số dư hiện tại: {new_balance} tín dụng.")
+                st.experimental_rerun()
+            else:
+                st.error("❌ Thanh toán chưa hoàn tất hoặc thất bại. Vui lòng thử lại.")
+                st.experimental_rerun()
 
 # =========================== KIỂM TRA SỬ DỤNG MIỄN PHÍ ===========================
 if menu == "Feel The Beat":
@@ -759,21 +745,15 @@ if menu == "Feel The Beat":
         st.session_state.free_uses -= 1
     else:
         user_id = st.session_state.user['id']
-        wallet = supabase.table("credits_wallet").select("credit").eq("user_id", user_id).execute()
-        credit_balance = wallet.data[0]["credit"] if wallet.data else 0
+        transactions = supabase.table("transactions").select("balance").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+        balance = transactions.data[0]["balance"] if transactions.data else 0
 
-        if credit_balance >= 25:
-            new_balance = credit_balance - 25
-            supabase.table("credits_wallet").update({"credit": new_balance}).eq("user_id", user_id).execute()
-            supabase.table("credits_history").insert({
-                "user_id": user_id,
-                "action": "deduct",
-                "amount": 25,
-                "note": "Sử dụng tính năng Feel The Beat"
-            }).execute()
+        if balance >= 25:
+            new_balance = balance - 25
             supabase.table("transactions").insert({
                 "user_id": user_id,
                 "credits_used": 25,
+                "balance": new_balance,
                 "payment_method": "Usage Fee",
                 "note": "Sử dụng tính năng Feel The Beat"
             }).execute()
