@@ -716,14 +716,7 @@ if menu == "Quản lý thanh toán":
         # Kiểm tra phản hồi từ MoMo
         if response.status_code == 200:
             response_data = response.json()
-            st.write(response_data)  # Hiển thị phản hồi từ MoMo để kiểm tra
-            payment_url = response_data.get("payUrl")
-            if payment_url:
-                st.markdown(f'<a href="{payment_url}" target="_self">Click here to pay</a>', unsafe_allow_html=True)
-                st.session_state["redirect_after_payment"] = True  # Đánh dấu trạng thái thanh toán
-                st.stop()
-            else:
-                st.error("Không nhận được URL thanh toán từ MoMo. Vui lòng thử lại.")
+            st.success("Yêu cầu thanh toán đã được gửi thành công. Vui lòng kiểm tra ứng dụng MoMo để hoàn tất thanh toán.")
         else:
             st.error(f"Lỗi khi gửi yêu cầu đến MoMo: {response.status_code}")
             st.write(response.text)  # Hiển thị chi tiết lỗi
@@ -751,10 +744,13 @@ if menu == "Quản lý thanh toán":
 
 # Kiểm tra tham số URL từ MoMo
 query_params = st.experimental_get_query_params()
-if "resultCode" in query_params:
+if "resultCode" in query_params and "processed" not in st.session_state:
     result_code = int(query_params.get("resultCode", [None])[0])
     order_id = query_params.get("orderId", [None])[0]
     amount = query_params.get("amount", [None])[0]
+
+    # Đánh dấu trạng thái đã xử lý để tránh lặp lại
+    st.session_state["processed"] = True
 
     # Xử lý kết quả thanh toán
     if result_code == 0:  # Thanh toán thành công
@@ -783,7 +779,7 @@ if "resultCode" in query_params:
     else:  # Thanh toán thất bại
         st.error(f"❌ Thanh toán thất bại. Mã lỗi: {result_code}")
 
-    # Xóa tham số URL và chuyển hướng về trang "Quản lý thanh toán"
+    # Xóa tham số URL để tránh lặp lại chuyển hướng
     st.experimental_set_query_params()  # Xóa tham số URL
     st.experimental_rerun()  # Tải lại trang để quay về giao diện chính
 
