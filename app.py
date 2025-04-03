@@ -679,7 +679,7 @@ if menu == "Quản lý thanh toán":
         momo_access_key = "F8BBA842ECF85"
         momo_secret_key = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
         order_id = f"order_{int(time.time())}"
-        redirect_url = st.secrets["https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"]  # URL của ứng dụng Streamlit
+        redirect_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"
         request_id = f"req_{int(time.time())}"
         order_info = f"Mua {selected_credits} tín dụng"
 
