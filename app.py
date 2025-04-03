@@ -679,8 +679,7 @@ if menu == "Quản lý thanh toán":
         momo_access_key = "F8BBA842ECF85"
         momo_secret_key = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
         order_id = f"order_{int(time.time())}"
-        redirect_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/"  # URL của ứng dụng Streamlit
-        ipn_url = "https://example.com/ipn"  # URL placeholder hợp lệ
+        redirect_url = "https://aimusic-kg7fjzh3yp5cvrncwxfhnf.streamlit.app/" # URL của ứng dụng Streamlit
         request_id = f"req_{int(time.time())}"
         order_info = f"Mua {selected_credits} tín dụng"
 
@@ -695,7 +694,7 @@ if menu == "Quản lý thanh toán":
         st.write(f"Số tiền gửi đến MoMo: {amount_str} VND")
 
         # Tạo chữ ký (signature)
-        raw_signature = f"accessKey={momo_access_key}&amount={amount_str}&extraData=&ipnUrl={ipn_url}&orderId={order_id}&orderInfo={order_info}&partnerCode={momo_partner_code}&redirectUrl={redirect_url}&requestId={request_id}&requestType=captureWallet"
+        raw_signature = f"accessKey={momo_access_key}&amount={amount_str}&extraData=&orderId={order_id}&orderInfo={order_info}&partnerCode={momo_partner_code}&redirectUrl={redirect_url}&requestId={request_id}&requestType=captureWallet"
         import hmac, hashlib
         signature = hmac.new(momo_secret_key.encode(), raw_signature.encode(), hashlib.sha256).hexdigest()
 
@@ -708,7 +707,6 @@ if menu == "Quản lý thanh toán":
             "orderId": order_id,
             "orderInfo": order_info,
             "redirectUrl": redirect_url,
-            "ipnUrl": ipn_url,  # Thêm ipnUrl hợp lệ
             "extraData": "",
             "requestType": "captureWallet",
             "signature": signature
@@ -750,6 +748,44 @@ if menu == "Quản lý thanh toán":
             else:
                 st.error("❌ Thanh toán chưa hoàn tất hoặc thất bại. Vui lòng thử lại.")
                 st.experimental_rerun()
+
+# Kiểm tra tham số URL từ MoMo
+query_params = st.experimental_get_query_params()
+if "resultCode" in query_params:
+    result_code = int(query_params.get("resultCode", [None])[0])
+    order_id = query_params.get("orderId", [None])[0]
+    amount = query_params.get("amount", [None])[0]
+
+    # Xử lý kết quả thanh toán
+    if result_code == 0:  # Thanh toán thành công
+        st.success(f"✅ Thanh toán thành công! Order ID: {order_id}, Số tiền: {amount} VND")
+        # TODO: Cập nhật số dư tín dụng trong cơ sở dữ liệu
+        user_id = st.session_state.get("user", {}).get("id")
+        if user_id:
+            # Lấy số dư hiện tại
+            transactions = supabase.table("transactions").select("balance").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+            balance = transactions.data[0]["balance"] if transactions.data else 0
+            new_balance = balance + int(amount)  # Cộng số tiền đã thanh toán vào số dư
+
+            # Cập nhật cơ sở dữ liệu
+            supabase.table("transactions").insert({
+                "user_id": user_id,
+                "credits_added": int(amount),
+                "balance": new_balance,
+                "payment_method": "MoMo",
+                "note": f"Thanh toán thành công qua MoMo. Order ID: {order_id}"
+            }).execute()
+
+            st.success(f"💰 Số dư mới: {new_balance} tín dụng.")
+        else:
+            st.error("❌ Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.")
+
+    else:  # Thanh toán thất bại
+        st.error(f"❌ Thanh toán thất bại. Mã lỗi: {result_code}")
+
+    # Xóa tham số URL và chuyển hướng về trang "Quản lý thanh toán"
+    st.experimental_set_query_params()  # Xóa tham số URL
+    st.experimental_rerun()  # Tải lại trang để quay về giao diện chính
 
 # =========================== KIỂM TRA SỬ DỤNG MIỄN PHÍ ===========================
 if menu == "Feel The Beat":
