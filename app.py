@@ -715,7 +715,6 @@ if menu == "Quản lý thanh toán":
 
         # Kiểm tra phản hồi từ MoMo
         if response.status_code == 200:
-            response_data = response.json()
             st.success("Yêu cầu thanh toán đã được gửi thành công. Vui lòng kiểm tra ứng dụng MoMo để hoàn tất thanh toán.")
         else:
             st.error(f"Lỗi khi gửi yêu cầu đến MoMo: {response.status_code}")
@@ -781,7 +780,7 @@ if "resultCode" in query_params and "processed" not in st.session_state:
 
     # Xóa tham số URL để tránh lặp lại chuyển hướng
     st.experimental_set_query_params()  # Xóa tham số URL
-    st.experimental_rerun()  # Tải lại trang để quay về giao diện chính
+    st.stop()  # Dừng xử lý thêm để tránh chuyển hướng lặp lại
 
 # =========================== KIỂM TRA SỬ DỤNG MIỄN PHÍ ===========================
 if menu == "Feel The Beat":
