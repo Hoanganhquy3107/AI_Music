@@ -746,7 +746,7 @@ if menu == "Quản lý thanh toán":
                 st.experimental_rerun()
 
 # Kiểm tra tham số URL từ MoMo
-query_params = st.experimental_get_query_params()
+query_params = st.query_params  # Updated from st.experimental_get_query_params
 if "resultCode" in query_params and "processed" not in st.session_state:
     result_code = int(query_params.get("resultCode", [None])[0])
     order_id = query_params.get("orderId", [None])[0]
