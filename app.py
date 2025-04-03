@@ -625,8 +625,16 @@ if menu == "Quản lý thanh toán":
     # Phần 1: Hiển thị số dư tài khoản
     if "user" in st.session_state:
         user_id = st.session_state.user['id']
-        transactions = supabase.table("transactions").select("balance").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
-        balance = transactions.data[0]["balance"] if transactions.data else 0
+        try:
+            # Truy vấn bảng transactions
+            transactions = supabase.table("transactions").select("balance").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+            if transactions.data:
+                balance = transactions.data[0]["balance"]
+            else:
+                balance = 0  # Nếu không có dữ liệu, đặt số dư mặc định là 0
+        except Exception as e:
+            st.error(f"❌ Lỗi khi truy vấn dữ liệu: {e}")
+            balance = 0  # Đặt số dư mặc định nếu xảy ra lỗi
     else:
         st.error("❌ Bạn cần đăng nhập để quản lý thanh toán.")
         st.stop()
