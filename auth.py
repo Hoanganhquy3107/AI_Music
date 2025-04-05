@@ -17,7 +17,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # ============================================
 # 1. HÀM ĐĂNG KÝ NGƯỜI DÙNG (Sign Up)
 # ============================================
-import re
+import re  # Thêm trên đầu file nếu chưa có
 
 def register_user(email, password, full_name):
     try:
@@ -36,20 +36,6 @@ def register_user(email, password, full_name):
         if not res.user:
             return False, "⚠️ Email này đã được đăng ký. Vui lòng đăng nhập hoặc sử dụng email khác."
 
-        # Thêm người dùng vào bảng user_profiles
-        user_id = res.user['id']  # Lấy ID người dùng từ kết quả đăng ký
-        try:
-            supabase.table("user_profiles").insert({
-                "id": user_id,
-                "full_name": full_name,
-                "email": email,
-                "credit_balance": 0,  # Giá trị mặc định
-                "role": "user"  # Vai trò mặc định
-            }).execute()
-        except Exception as e:
-            print("Lỗi khi thêm vào user_profiles:", str(e))
-            return False, "❌ Đăng ký thành công nhưng không thể lưu thông tin người dùng. Vui lòng liên hệ hỗ trợ."
-
         return True, f"✅ Đăng ký thành công! Mã xác minh đã được gửi đến {email}."
 
     except Exception as e:
@@ -61,7 +47,6 @@ def register_user(email, password, full_name):
 
         print("Đăng ký lỗi:", error_message)
         return False, f"❌ Lỗi đăng ký: {error_message}"
-
 
 
 
