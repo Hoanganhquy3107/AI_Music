@@ -792,8 +792,9 @@ def payment_management(user_id):
         st.error("Lỗi khi xử lý giao dịch.")
 
 # Kiểm tra người dùng đã đăng nhập
-if "user" in st.session_state:
+if "user" in st.session_state and "id" in st.session_state["user"]:
     user_id = st.session_state["user"]["id"]
-    payment_management(user_id)
 else:
-    st.warning("Vui lòng đăng nhập để quản lý thanh toán.")
+    st.error("❌ Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.")
+
+    payment_management(user_id)
