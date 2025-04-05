@@ -47,6 +47,12 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+from auth import sync_user_profiles
+
+# Đồng bộ dữ liệu khi khởi chạy ứng dụng
+sync_user_profiles()
+
+
 print(os.path.exists("D:/test/Music-Genre-Recognition-main/.streamlit/secrets.toml"))
 
 
@@ -186,33 +192,42 @@ with st.sidebar:
                 success, msg = login_user(email, password)
                 if success:
                     try:
-                        # Lấy thông tin người dùng từ bảng `auth.users`
-                        user_data = supabase.table("auth.users").select("id").eq("email", email).execute()
+                        # Lấy thông tin người dùng từ bảng auth.users
+                        user_data = supabase.table("auth.users").select("id", "full_name").eq("email", email).execute()
                         if user_data.data and len(user_data.data) > 0:
                             user_id = user_data.data[0]["id"]
-                            
-                            # Lấy thông tin chi tiết từ bảng `user_profiles`
+                            full_name = user_data.data[0]["full_name"]
+
+                            # Kiểm tra bảng user_profiles
                             profile_data = supabase.table("user_profiles").select("full_name", "role").eq("id", user_id).execute()
-                            if profile_data.data and len(profile_data.data) > 0:
-                                st.session_state["user"] = {
-                                    "email": email,
-                                    "id": user_id,  # Thêm ID vào session_state
-                                    "full_name": profile_data.data[0]["full_name"],
-                                    "role": profile_data.data[0]["role"]
-                                }
-                                # Lưu email vào cookies
-                                cookies["user_email"] = encode_email(email)
-                                cookies.save()
-                                st.success(f"✅ Đăng nhập thành công! Xin chào, {profile_data.data[0]['full_name']}.")
-                                st.rerun()
-                            else:
-                                st.error("❌ Không thể lấy thông tin hồ sơ người dùng từ Supabase.")
+                            if not profile_data.data or len(profile_data.data) == 0:
+                                # Nếu không có dữ liệu trong user_profiles, thêm mới
+                                supabase.table("user_profiles").insert({
+                                    "id": user_id,
+                                    "full_name": full_name,
+                                    "role": "user"  # Mặc định vai trò là "user"
+                                }).execute()
+
+                            # Cập nhật session_state
+                            st.session_state["user"] = {
+                                "email": email,
+                                "id": user_id,
+                                "full_name": full_name,
+                                "role": profile_data.data[0]["role"] if profile_data.data else "user"
+                            }
+
+                            # Lưu email vào cookies
+                            cookies["user_email"] = encode_email(email)
+                            cookies.save()
+                            st.success(f"✅ Đăng nhập thành công! Xin chào, {full_name}.")
+                            st.rerun()
                         else:
                             st.error("❌ Không tìm thấy người dùng với email này trong hệ thống.")
                     except Exception as e:
                         st.error(f"❌ Đã xảy ra lỗi khi kết nối với Supabase: {e}")
                 else:
                     st.error(msg)
+
 
         elif auth_menu == "Quên mật khẩu":
             st.subheader("📧 Đặt lại mật khẩu")
@@ -238,6 +253,7 @@ with st.sidebar:
     else:
         st.markdown("👤 Bạn đang truy cập với tư cách **khách**")
         st.info("👉 Vui lòng đăng nhập để mở khoá các tính năng chính.")
+
 
     # Menu chính
     menu = option_menu(
