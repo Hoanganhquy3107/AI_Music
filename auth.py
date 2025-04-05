@@ -55,26 +55,15 @@ def register_user(email, password, full_name):
 # ============================================
 def login_user(email, password):
     try:
-        # Gửi yêu cầu đăng nhập
-        result = supabase.auth.sign_in_with_password({
+        res = supabase.auth.sign_in_with_password({
             "email": email,
             "password": password
         })
+        user_id = res.user.id  # Lấy user id từ response
+        return True, "Đăng nhập thành công!", user_id
+    except Exception as e:
+        return False, f"Lỗi đăng nhập: {str(e)}", None
 
-        user = result.user
-        session = result.session
-
-        if not session:
-            return False, "❌ Sai email hoặc mật khẩu."
-
-        if user.email_confirmed_at is None:
-            return False, "📩 Vui lòng xác minh email trước khi đăng nhập."
-
-        # Lưu vào session_state của Streamlit
-        st.session_state["user"] = {
-            "id": user.id,
-            "email": user.email
-        }
 
         # ============================================
         # TẠO PROFILE VÀ VÍ CREDITS nếu chưa tồn tại
