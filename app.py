@@ -144,7 +144,6 @@ def decode_email(encoded):
         return base64.b64decode(encoded.encode()).decode()
     except Exception:
         return None
-
 with st.sidebar:
     st.image("a-minimalist-logo-design-on-a-black-back.jpeg", use_container_width=True)
 
@@ -156,38 +155,41 @@ with st.sidebar:
         if decoded_email:
             st.session_state['user'] = {'email': decoded_email}
 
+    # Nếu chưa đăng nhập, hiển thị menu xác thực
     if "user" not in st.session_state:
         auth_menu = st.radio("🔐 Tài khoản", ["Đăng nhập", "Đăng ký", "Quên mật khẩu"], horizontal=True)
-        if auth_menu == "Đăng ký":
-             st.subheader("✍️ Đăng ký tài khoản")
-    full_name = st.text_input("Họ tên")
-    email = st.text_input("Email")
-    password = st.text_input("Mật khẩu", type="password")
-    if st.button("🚀 Đăng ký"):
-        from auth import register_user
-        success, msg = register_user(email, password, full_name)
-        if success:
-            # Truy vấn thông tin người dùng từ bảng auth.users
-            user_data = supabase.table("auth.users").select("id").eq("email", email).execute()
-            if user_data.data:
-                user_id = user_data.data[0]["id"]
-                # Tạo bản ghi trong bảng user_profiles
-                supabase.table("user_profiles").insert({
-                    "id": user_id,
-                    "full_name": full_name,
-                    "role": "client"
-                }).execute()
 
-                # Lưu thông tin người dùng vào session_state
-                st.session_state["user"] = {"email": email, "id": user_id}
-                cookies["user_email"] = encode_email(email)
-                cookies.save()
-                st.success(msg)
-                st.info("📧 Vui lòng kiểm tra hộp thư để xác minh tài khoản trước khi đăng nhập.")
-            else:
-                st.error("Không thể lấy thông tin người dùng từ Supabase.")
-        else:
-            st.error(msg)
+        if auth_menu == "Đăng ký":
+            st.subheader("✍️ Đăng ký tài khoản")
+            full_name = st.text_input("Họ tên")
+            email = st.text_input("Email")
+            password = st.text_input("Mật khẩu", type="password")
+            if st.button("🚀 Đăng ký"):
+                from auth import register_user
+                success, msg = register_user(email, password, full_name)
+                if success:
+                    # Truy vấn thông tin người dùng từ bảng auth.users
+                    user_data = supabase.table("auth.users").select("id").eq("email", email).execute()
+                    if user_data.data:
+                        user_id = user_data.data[0]["id"]
+                        # Tạo bản ghi trong bảng user_profiles
+                        supabase.table("user_profiles").insert({
+                            "id": user_id,
+                            "full_name": full_name,
+                            "role": "client"
+                        }).execute()
+
+                        # Lưu thông tin người dùng vào session_state
+                        st.session_state["user"] = {"email": email, "id": user_id}
+                        cookies["user_email"] = encode_email(email)
+                        cookies.save()
+                        st.success(msg)
+                        st.info("📧 Vui lòng kiểm tra hộp thư để xác minh tài khoản trước khi đăng nhập.")
+                    else:
+                        st.error("Không thể lấy thông tin người dùng từ Supabase.")
+                else:
+                    st.error(msg)
+
         elif auth_menu == "Đăng nhập":
             st.subheader("🔑 Đăng nhập")
             email = st.text_input("Email đăng nhập")
@@ -204,10 +206,10 @@ with st.sidebar:
                         profile_data = supabase.table("user_profiles").select("full_name", "role").eq("id", user_id).execute()
                         if profile_data.data:
                             st.session_state["user"] = {
-                            "email": email,
-                            "id": user_id,
-                            "full_name": profile_data.data[0]["full_name"],
-                            "role": profile_data.data[0]["role"]
+                                "email": email,
+                                "id": user_id,
+                                "full_name": profile_data.data[0]["full_name"],
+                                "role": profile_data.data[0]["role"]
                             }
                             cookies["user_email"] = encode_email(email)
                             cookies.save()
@@ -218,6 +220,7 @@ with st.sidebar:
                         st.error("Không tìm thấy người dùng với email này trong hệ thống.")
                 else:
                     st.error(msg)
+
         elif auth_menu == "Quên mật khẩu":
             st.subheader("📧 Đặt lại mật khẩu")
             email = st.text_input("Nhập email đã đăng ký")
@@ -229,6 +232,7 @@ with st.sidebar:
                 except Exception as e:
                     st.error(f"❌ Lỗi khi gửi email: {e}")
 
+    # Nếu đã đăng nhập, hiển thị thông tin người dùng
     if "user" in st.session_state:
         st.markdown(f"👋 Xin chào, **{st.session_state['user']['email']}**")
         st.markdown("📌 Bạn có thể sử dụng toàn bộ chức năng")
@@ -241,7 +245,6 @@ with st.sidebar:
     else:
         st.markdown("👤 Bạn đang truy cập với tư cách **khách**")
         st.info("👉 Vui lòng đăng nhập để mở khoá các tính năng chính.")
-
 
     # Menu chính
     menu = option_menu(
