@@ -189,27 +189,35 @@ with st.sidebar:
         else:
             st.error(msg)
         elif auth_menu == "Đăng nhập":
-    st.subheader("🔑 Đăng nhập")
-    email = st.text_input("Email đăng nhập")
-    password = st.text_input("Mật khẩu", type="password")
-    if st.button("🔓 Đăng nhập"):
-        from auth import login_user
-        success, msg = login_user(email, password)
-        if success:
-            # Truy vấn thông tin người dùng từ Supabase
-            user_data = supabase.table("user_profiles").select("id").eq("email", email).execute()
-            if user_data.data:
-                user_id = user_data.data[0]["id"]
-                st.session_state["user"] = {"email": email, "id": user_id}
-                cookies["user_email"] = encode_email(email)
-                cookies.save()
-                st.rerun()
-            else:
-                st.error("Không thể lấy thông tin người dùng từ Supabase.")
-        else:
-            st.error(msg)
-
-
+            st.subheader("🔑 Đăng nhập")
+            email = st.text_input("Email đăng nhập")
+            password = st.text_input("Mật khẩu", type="password")
+            if st.button("🔓 Đăng nhập"):
+                from auth import login_user
+                success, msg = login_user(email, password)
+                if success:
+                    # Truy vấn thông tin người dùng từ bảng auth.users
+                    user_data = supabase.table("auth.users").select("id").eq("email", email).execute()
+                    if user_data.data:
+                        user_id = user_data.data[0]["id"]
+                        # Truy vấn thông tin từ bảng user_profiles dựa trên id
+                        profile_data = supabase.table("user_profiles").select("full_name", "role").eq("id", user_id).execute()
+                        if profile_data.data:
+                            st.session_state["user"] = {
+                            "email": email,
+                            "id": user_id,
+                            "full_name": profile_data.data[0]["full_name"],
+                            "role": profile_data.data[0]["role"]
+                            }
+                            cookies["user_email"] = encode_email(email)
+                            cookies.save()
+                            st.rerun()
+                        else:
+                            st.error("Không thể lấy thông tin người dùng từ Supabase.")
+                    else:
+                        st.error("Không tìm thấy người dùng với email này trong hệ thống.")
+                else:
+                    st.error(msg)
         elif auth_menu == "Quên mật khẩu":
             st.subheader("📧 Đặt lại mật khẩu")
             email = st.text_input("Nhập email đã đăng ký")
@@ -781,4 +789,5 @@ if "user" in st.session_state and "id" in st.session_state["user"]:
     payment_management(user_id)
 else:
     st.warning("Vui lòng đăng nhập để quản lý thanh toán.")
+
 
