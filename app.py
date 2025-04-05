@@ -181,8 +181,8 @@ with st.sidebar:
 
                         # Lưu thông tin người dùng vào session_state
                         st.session_state["user"] = {"email": email, "id": user_id}
-                        cookies["user_email"] = encode_email(email)
-                        cookies.save()
+                        # cookies["user_email"] = encode_email(email)
+                        # cookies.save()
                         st.success(msg)
                         st.info("📧 Vui lòng kiểm tra hộp thư để xác minh tài khoản trước khi đăng nhập.")
                     else:
