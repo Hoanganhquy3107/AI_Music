@@ -144,7 +144,6 @@ def decode_email(encoded):
         return base64.b64decode(encoded.encode()).decode()
     except Exception:
         return None
-
 with st.sidebar:
     st.image("a-minimalist-logo-design-on-a-black-back.jpeg", use_container_width=True)
 
@@ -157,14 +156,14 @@ with st.sidebar:
             st.session_state['user'] = {'email': decoded_email}
 
     if "user" not in st.session_state:
-        auth_menu = st.radio("🔐 Tài khoản", ["Đăng nhập", "Đăng ký", "Quên mật khẩu"], horizontal=True)
+        auth_menu = st.radio("\U0001F510 Tài khoản", ["Đăng nhập", "Đăng ký", "Quên mật khẩu"], horizontal=True)
 
         if auth_menu == "Đăng ký":
             st.subheader("✍️ Đăng ký tài khoản")
             full_name = st.text_input("Họ tên")
             email = st.text_input("Email")
             password = st.text_input("Mật khẩu", type="password")
-            if st.button("🚀 Đăng ký"):
+            if st.button("\U0001F680 Đăng ký"):
                 from auth import register_user
                 success, msg = register_user(email, password, full_name)
                 if success:
@@ -172,61 +171,58 @@ with st.sidebar:
                     cookies["user_email"] = encode_email(email)
                     cookies.save()
                     st.success(msg)
-                    st.info("📧 Vui lòng kiểm tra hộp thư để xác minh tài khoản trước khi đăng nhập.")
+                    st.info("\U0001F4E7 Vui lòng kiểm tra hộp thư để xác minh tài khoản trước khi đăng nhập.")
                 else:
                     st.error(msg)
 
         elif auth_menu == "Đăng nhập":
-    st.subheader("\U0001F511 Đăng nhập")
-    email = st.text_input("Email đăng nhập")
-    password = st.text_input("Mật khẩu", type="password")
-    if st.button("\U0001F513 Đăng nhập"):
-        from auth import login_user, supabase
-        try:
-            # Đăng nhập và lấy thông tin user
-            res = supabase.auth.sign_in_with_password({
-                "email": email,
-                "password": password
-            })
-            if res.user:
-                # Lưu cả email và id vào session state
-                st.session_state['user'] = {
-                    'email': email,
-                    'id': res.user.id  # Lưu user ID
-                }
-                cookies["user_email"] = encode_email(email)
-                cookies.save()
-                st.success("Đăng nhập thành công!")
-                st.rerun()
-            else:
-                st.error("Đăng nhập thất bại")
-        except Exception as e:
-            st.error(f"Lỗi đăng nhập: {str(e)}")
-
+            st.subheader("\U0001F511 Đăng nhập")
+            email = st.text_input("Email đăng nhập")
+            password = st.text_input("Mật khẩu", type="password")
+            if st.button("\U0001F513 Đăng nhập"):
+                try:
+                    # Đăng nhập và lấy thông tin user
+                    res = supabase.auth.sign_in_with_password({
+                        "email": email,
+                        "password": password
+                    })
+                    if res.user:
+                        # Lưu cả email và id vào session state
+                        st.session_state['user'] = {
+                            'email': email,
+                            'id': res.user.id  # Lưu user ID
+                        }
+                        cookies["user_email"] = encode_email(email)
+                        cookies.save()
+                        st.success("Đăng nhập thành công!")
+                        st.rerun()
+                    else:
+                        st.error("Đăng nhập thất bại")
+                except Exception as e:
+                    st.error(f"Lỗi đăng nhập: {str(e)}")
 
         elif auth_menu == "Quên mật khẩu":
-            st.subheader("📧 Đặt lại mật khẩu")
+            st.subheader("\U0001F4E7 Đặt lại mật khẩu")
             email = st.text_input("Nhập email đã đăng ký")
             if st.button("Gửi email đặt lại mật khẩu"):
-                from auth import supabase
                 try:
                     res = supabase.auth.reset_password_for_email(email)
-                    st.success("📬 Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư đến.")
+                    st.success("\U0001F4EC Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư đến.")
                 except Exception as e:
                     st.error(f"❌ Lỗi khi gửi email: {e}")
 
     if "user" in st.session_state:
-        st.markdown(f"👋 Xin chào, **{st.session_state['user']['email']}**")
-        st.markdown("📌 Bạn có thể sử dụng toàn bộ chức năng")
-        if st.button("🚪 Đăng xuất"):
+        st.markdown(f"\U0001F44B Xin chào, **{st.session_state['user']['email']}**")
+        st.markdown("\U0001F4CC Bạn có thể sử dụng toàn bộ chức năng")
+        if st.button("\U0001F6AA Đăng xuất"):
             del cookies["user_email"]
             del st.session_state['user']
             cookies.save()
             st.success("✅ Đã đăng xuất.")
             st.rerun()
     else:
-        st.markdown("👤 Bạn đang truy cập với tư cách **khách**")
-        st.info("👉 Vui lòng đăng nhập để mở khoá các tính năng chính.")
+        st.markdown("\U0001F464 Bạn đang truy cập với tư cách **khách**")
+        st.info("\U0001F449 Vui lòng đăng nhập để mở khoá các tính năng chính.")
 
 
     # Menu chính
