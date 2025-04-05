@@ -1,38 +1,40 @@
-import os
-import bcrypt
-import re  # Thêm thư viện kiểm tra email hợp lệ
-import openai
-import openai
-import numpy as np
-import streamlit as st
+import asyncio
 import base64
-import pytube
-import os
-import subprocess 
+import bcrypt
+import cmath  # Không có trong danh sách của bạn, nếu không cần thì bỏ qua
+import hashlib
+import hmac
 import librosa
-import tempfile 
-from pydub import AudioSegment
-import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from matplotlib.colors import Normalize
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+import pytube
+import re
+import requests
+import streamlit as st
+import subprocess
+import tempfile
 import tensorflow as tf
-from statistics import mode
-from tensorflow import keras
+import time
+import uuid
+from dotenv import load_dotenv
 from keras import regularizers
 from keras.preprocessing.image import load_img, img_to_array
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import (Conv2D, MaxPooling2D, Flatten, Dropout, Dense, Activation)
-from streamlit_option_menu import option_menu
-import time
-from dotenv import load_dotenv
-from supabase import create_client, Client
-import requests  # Dùng để gửi yêu cầu API
-from auth import save_song
-import asyncio 
+from matplotlib.colors import Normalize
+from pydub import AudioSegment
+from statistics import mode
 from streamlit_cookies_manager import CookieManager
-import hmac
-import hashlib
-import uuid
+from streamlit_option_menu import option_menu
+from supabase import create_client, Client
+from tensorflow.keras.layers import (
+    Conv2D, MaxPooling2D, Flatten, Dropout, Dense, Activation
+)
+from tensorflow.keras.models import Sequential
+import openai
+from auth import save_song
+# Load biến môi trường
+load_dotenv()
 
 st.set_page_config(page_title="Music AI Website", layout="wide")
 # Lấy API key từ secrets.toml
@@ -47,10 +49,7 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-from auth import sync_user_profiles
 
-# Đồng bộ dữ liệu khi khởi chạy ứng dụng
-sync_user_profiles()
 
 
 print(os.path.exists("D:/test/Music-Genre-Recognition-main/.streamlit/secrets.toml"))
@@ -150,21 +149,89 @@ def decode_email(encoded):
         return base64.b64decode(encoded.encode()).decode()
     except Exception:
         return None
+# 1. HÀM ĐĂNG KÝ NGƯỜI DÙNG (Sign Up)
+# ============================================
+def register_user(email, password, full_name):
+    try:
+        # Mã hóa mật khẩu
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+        # Thêm người dùng vào bảng auth.users
+        user_data = supabase.table("auth.users").insert({
+            "email": email,
+            "password": hashed_password,
+            "full_name": full_name
+        }).execute()
+
+        # Lấy ID của người dùng vừa tạo
+        user_id = user_data.data[0]["id"]
+
+        # Thêm thông tin vào bảng user_profiles
+        supabase.table("public.user_profiles").insert({
+            "id": user_id,  # ID khớp với auth.users
+            "full_name": full_name,
+            "role": "user"  # Mặc định vai trò là "user"
+        }).execute()
+
+        return True, "✅ Đăng ký thành công!"
+    except Exception as e:
+        return False, f"❌ Lỗi khi đăng ký: {str(e)}"
+
+# ============================================
+# 2. HÀM ĐĂNG NHẬP (Sign In)
+# ============================================
+def login_user(email, password):
+    try:
+        # Tìm người dùng trong bảng auth.users
+        user_data = supabase.table("auth.users").select("*").eq("email", email).execute()
+        if not user_data.data:
+            return False, "❌ Email không tồn tại!"
+
+        user = user_data.data[0]
+
+        # Kiểm tra mật khẩu
+        if bcrypt.checkpw(password.encode('utf-8'), user["password"].encode('utf-8')):
+            return True, "✅ Đăng nhập thành công!"
+        else:
+            return False, "❌ Mật khẩu không đúng!"
+    except Exception as e:
+        return False, f"❌ Lỗi khi đăng nhập: {str(e)}"
+
+# ============================================
+# 3. Hàm đồng bộ dữ liệu (Sync User Profiles)
+# ============================================
+def sync_user_profiles():
+    try:
+        # Lấy danh sách người dùng từ bảng auth.users
+        users = supabase.table("auth.users").select("*").execute().data
+
+        for user in users:
+            # Kiểm tra xem user_profiles đã có dữ liệu chưa
+            profile_data = supabase.table("public.user_profiles").select("*").eq("id", user["id"]).execute()
+            if not profile_data.data:
+                # Nếu chưa có, thêm mới vào user_profiles
+                supabase.table("public.user_profiles").insert({
+                    "id": user["id"],
+                    "full_name": user["full_name"],
+                    "role": "user"
+                }).execute()
+    except Exception as e:
+        print(f"Lỗi đồng bộ dữ liệu: {e}")
+
+cookies = CookieManager()
+# Đồng bộ dữ liệu khi khởi chạy ứng dụng
+sync_user_profiles()
 
 with st.sidebar:
     st.image("a-minimalist-logo-design-on-a-black-back.jpeg", use_container_width=True)
 
-    cookies = CookieManager()
-
-    # Kiểm tra cookies có sẵn và đã mã hóa email
     if cookies.ready() and cookies.get("user_email"):
         decoded_email = decode_email(cookies.get("user_email"))
         if decoded_email:
             st.session_state['user'] = {'email': decoded_email}
 
-    # Xử lý khi người dùng chưa đăng nhập
     if "user" not in st.session_state:
-        auth_menu = st.radio("🔐 Tài khoản", ["Đăng nhập", "Đăng ký", "Quên mật khẩu"], horizontal=True)
+        auth_menu = st.radio("🔒 Tài khoản", ["Đăng nhập", "Đăng ký", "Quên mật khẩu"], horizontal=True)
 
         if auth_menu == "Đăng ký":
             st.subheader("✍️ Đăng ký tài khoản")
@@ -172,7 +239,6 @@ with st.sidebar:
             email = st.text_input("Email")
             password = st.text_input("Mật khẩu", type="password")
             if st.button("🚀 Đăng ký"):
-                from auth import register_user
                 success, msg = register_user(email, password, full_name)
                 if success:
                     st.session_state['user'] = {'email': email}
@@ -188,58 +254,34 @@ with st.sidebar:
             email = st.text_input("Email đăng nhập")
             password = st.text_input("Mật khẩu", type="password")
             if st.button("🔓 Đăng nhập"):
-                from auth import login_user
                 success, msg = login_user(email, password)
                 if success:
-                    try:
-                        # Lấy thông tin người dùng từ bảng auth.users
-                        user_data = supabase.table("auth.users").select("id", "full_name").eq("email", email).execute()
-                        if user_data.data and len(user_data.data) > 0:
-                            user_id = user_data.data[0]["id"]
-                            full_name = user_data.data[0]["full_name"]
-
-                            # Kiểm tra bảng user_profiles
-                            profile_data = supabase.table("user_profiles").select("full_name", "role").eq("id", user_id).execute()
-                            if not profile_data.data or len(profile_data.data) == 0:
-                                # Nếu không có dữ liệu trong user_profiles, thêm mới
-                                supabase.table("user_profiles").insert({
-                                    "id": user_id,
-                                    "full_name": full_name,
-                                    "role": "user"  # Mặc định vai trò là "user"
-                                }).execute()
-
-                            # Cập nhật session_state
-                            st.session_state["user"] = {
-                                "email": email,
-                                "id": user_id,
-                                "full_name": full_name,
-                                "role": profile_data.data[0]["role"] if profile_data.data else "user"
-                            }
-
-                            # Lưu email vào cookies
-                            cookies["user_email"] = encode_email(email)
-                            cookies.save()
-                            st.success(f"✅ Đăng nhập thành công! Xin chào, {full_name}.")
-                            st.rerun()
-                        else:
-                            st.error("❌ Không tìm thấy người dùng với email này trong hệ thống.")
-                    except Exception as e:
-                        st.error(f"❌ Đã xảy ra lỗi khi kết nối với Supabase: {e}")
+                    st.session_state['user'] = {'email': email}
+                    cookies["user_email"] = encode_email(email)
+                    cookies.save()
+                    st.success(msg)
+                    st.rerun()
                 else:
                     st.error(msg)
-
 
         elif auth_menu == "Quên mật khẩu":
             st.subheader("📧 Đặt lại mật khẩu")
             email = st.text_input("Nhập email đã đăng ký")
             if st.button("Gửi email đặt lại mật khẩu"):
-                from auth import supabase
                 try:
-                    res = supabase.auth.reset_password_for_email(email)
+                    supabase.auth.reset_password_for_email(email)
                     st.success("📬 Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư đến.")
                 except Exception as e:
                     st.error(f"❌ Lỗi khi gửi email: {e}")
 
+    if "user" in st.session_state:
+        st.markdown(f"👋 Xin chào, **{st.session_state['user']['email']}**")
+        if st.button("🚪 Đăng xuất"):
+            del cookies["user_email"]
+            del st.session_state['user']
+            cookies.save()
+            st.success("✅ Đã đăng xuất.")
+            st.rerun()
     # Xử lý khi người dùng đã đăng nhập
     if "user" in st.session_state:
         st.markdown(f"👋 Xin chào, **{st.session_state['user']['email']}**")
