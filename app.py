@@ -177,19 +177,32 @@ with st.sidebar:
                     st.error(msg)
 
         elif auth_menu == "Đăng nhập":
-            st.subheader("🔑 Đăng nhập")
-            email = st.text_input("Email đăng nhập")
-            password = st.text_input("Mật khẩu", type="password")
-            if st.button("🔓 Đăng nhập"):
-                from auth import login_user
-                success, msg = login_user(email, password)
-                if success:
-                    st.session_state['user'] = {'email': email}
-                    cookies["user_email"] = encode_email(email)
-                    cookies.save()
-                    st.rerun()
-                else:
-                    st.error(msg)
+    st.subheader("\U0001F511 Đăng nhập")
+    email = st.text_input("Email đăng nhập")
+    password = st.text_input("Mật khẩu", type="password")
+    if st.button("\U0001F513 Đăng nhập"):
+        from auth import login_user, supabase
+        try:
+            # Đăng nhập và lấy thông tin user
+            res = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+            if res.user:
+                # Lưu cả email và id vào session state
+                st.session_state['user'] = {
+                    'email': email,
+                    'id': res.user.id  # Lưu user ID
+                }
+                cookies["user_email"] = encode_email(email)
+                cookies.save()
+                st.success("Đăng nhập thành công!")
+                st.rerun()
+            else:
+                st.error("Đăng nhập thất bại")
+        except Exception as e:
+            st.error(f"Lỗi đăng nhập: {str(e)}")
+
 
         elif auth_menu == "Quên mật khẩu":
             st.subheader("📧 Đặt lại mật khẩu")
@@ -757,8 +770,14 @@ def payment_management(user_id):
         st.error("Lỗi khi xử lý giao dịch.")
 
 # Kiểm tra người dùng đã đăng nhập
+# Kiểm tra người dùng đã đăng nhập
 if "user" in st.session_state:
-    user_id = st.session_state["user"]["id"]
-    payment_management(user_id)
+    user = st.session_state["user"]
+    if isinstance(user, dict) and "id" in user:
+        user_id = user["id"]
+        payment_management(user_id)
+    else:
+        st.warning("Thông tin người dùng không hợp lệ, vui lòng đăng nhập lại.")
 else:
     st.warning("Vui lòng đăng nhập để quản lý thanh toán.")
+
