@@ -20,19 +20,16 @@ import time
 import uuid
 from dotenv import load_dotenv
 from keras import regularizers
-from keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from matplotlib.colors import Normalize
 from pydub import AudioSegment
 from statistics import mode
 from streamlit_cookies_manager import CookieManager
 from streamlit_option_menu import option_menu
 from supabase import create_client, Client
-from tensorflow.keras.layers import (
-    Conv2D, MaxPooling2D, Flatten, Dropout, Dense, Activation
-)
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dropout, Dense, Activation
+
 import openai
-from auth import save_song
 # Load biến môi trường
 load_dotenv()
 
@@ -138,6 +135,17 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+def save_song(song_data, user_id):
+    try:
+        # Logic lưu bài hát vào cơ sở dữ liệu
+        supabase.table("songs").insert({
+            "user_id": user_id,
+            "song_data": song_data,
+            "created_at": time.time()
+        }).execute()
+        st.success("✅ Bài hát đã được lưu thành công!")
+    except Exception as e:
+        st.error(f"❌ Lỗi khi lưu bài hát: {str(e)}")
 
 # Hàm mã hóa email
 def encode_email(email):
@@ -153,29 +161,24 @@ def decode_email(encoded):
 # ============================================
 def register_user(email, password, full_name):
     try:
-        # Mã hóa mật khẩu
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-        # Thêm người dùng vào bảng auth.users
         user_data = supabase.table("auth.users").insert({
             "email": email,
             "password": hashed_password,
             "full_name": full_name
         }).execute()
 
-        # Lấy ID của người dùng vừa tạo
-        user_id = user_data.data[0]["id"]
-
-        # Thêm thông tin vào bảng user_profiles
+        user_id = user_data.data[0]["id"]  # Đảm bảo `user_data` chứa dữ liệu
         supabase.table("public.user_profiles").insert({
-            "id": user_id,  # ID khớp với auth.users
+            "id": user_id,
             "full_name": full_name,
-            "role": "user"  # Mặc định vai trò là "user"
+            "role": "user"
         }).execute()
 
         return True, "✅ Đăng ký thành công!"
     except Exception as e:
         return False, f"❌ Lỗi khi đăng ký: {str(e)}"
+
 
 # ============================================
 # 2. HÀM ĐĂNG NHẬP (Sign In)
@@ -217,6 +220,14 @@ def sync_user_profiles():
                 }).execute()
     except Exception as e:
         print(f"Lỗi đồng bộ dữ liệu: {e}")
+def payment_management(user_id, amount):
+    try:
+        # Logic xử lý thanh toán
+        st.write(f"Thanh toán thành công cho user_id: {user_id} với số tiền: {amount}.")
+        return True
+    except Exception as e:
+        st.error(f"Lỗi khi thanh toán: {str(e)}")
+        return False
 
 cookies = CookieManager()
 # Đồng bộ dữ liệu khi khởi chạy ứng dụng
@@ -241,7 +252,13 @@ with st.sidebar:
             if st.button("🚀 Đăng ký"):
                 success, msg = register_user(email, password, full_name)
                 if success:
-                    st.session_state['user'] = {'email': email}
+                    user_data = supabase.table("auth.users").select("*").eq("email", email).execute()
+                    if user_data.data:
+                        user_id = user_data.data[0]["id"]
+                    else:
+                        st.error("❌ Không tìm thấy thông tin người dùng.")
+                        st.stop()
+                    st.session_state['user'] = {'email': email, 'id': user_id}  # Thêm 'id' vào session_state
                     cookies["user_email"] = encode_email(email)
                     cookies.save()
                     st.success(msg)
@@ -732,13 +749,13 @@ if menu == "Quản lý thanh toán":
     st.title("💳 Quản lý thanh toán")
     amount = st.number_input("Nhập số tiền cần thanh toán:", min_value=0)
     if st.button("Thanh toán"):
-        if "user" in st.session_state and "id" in st.session_state["user"]:
-            user_id = st.session_state["user"]["i"]
-            # Logic thanh toán (thay manage_payment bằng hàm của bạn)
-            result = f"Thanh toán thành công cho user_id: {user_id} với số tiền: {amount}."
-            st.write(result)
+        if "user" in st.session_state and isinstance(st.session_state["user"], dict) and "id" in st.session_state["user"]:
+            user_id = st.session_state["user"]["id"]
+            payment_management(user_id, amount)  # Gọi hàm quản lý thanh toán
         else:
-            st.warning("Vui lòng đăng nhập để thực hiện thanh toán.")
+            st.error("❌ Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.")
+
+
 
 # API Key cho Apilayer
 APILAYER_KEY = "qf4h6PVtQlWfqPBrQEgStY3eHeEuk88E"
