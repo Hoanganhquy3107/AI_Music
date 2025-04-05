@@ -5,6 +5,7 @@ import os
 import streamlit as st
 from supabase import create_client, Client
 from dotenv import load_dotenv
+import bcrypt
 
 # Load biến môi trường
 load_dotenv()
@@ -21,32 +22,30 @@ import re  # Thêm trên đầu file nếu chưa có
 
 def register_user(email, password, full_name):
     try:
-        # Kiểm tra định dạng email bằng regex
-        email_regex = r"^[\w\.-]+@[\w\.-]+\.\w+$"
-        if not re.match(email_regex, email):
-            return False, "❌ Email không hợp lệ. Vui lòng kiểm tra lại."
+        # Mã hóa mật khẩu
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-        # Gửi yêu cầu đăng ký
-        res = supabase.auth.sign_up({
+        # Thêm người dùng vào bảng auth.users
+        user_data = supabase.table("auth.users").insert({
             "email": email,
-            "password": password
-        })
+            "password": hashed_password,
+            "full_name": full_name
+        }).execute()
 
-        # Nếu không có user được trả về
-        if not res.user:
-            return False, "⚠️ Email này đã được đăng ký. Vui lòng đăng nhập hoặc sử dụng email khác."
+        # Lấy ID của người dùng vừa tạo
+        user_id = user_data.data[0]["id"]
 
-        return True, f"✅ Đăng ký thành công! Mã xác minh đã được gửi đến {email}."
+        # Thêm thông tin vào bảng user_profiles
+        supabase.table("user_profiles").insert({
+            "id": user_id,  # ID khớp với auth.users
+            "full_name": full_name,
+            "role": "user"  # Mặc định vai trò là "user"
+        }).execute()
 
+        return True, "✅ Đăng ký thành công!"
     except Exception as e:
-        error_message = str(e)
+        return False, f"❌ Lỗi khi đăng ký: {str(e)}"
 
-        # Bắt lỗi phổ biến
-        if "User already registered" in error_message or "duplicate key" in error_message or "Email rate limit" in error_message:
-            return False, "⚠️ Email đã tồn tại. Vui lòng đăng nhập hoặc dùng email khác."
-
-        print("Đăng ký lỗi:", error_message)
-        return False, f"❌ Lỗi đăng ký: {error_message}"
 
 
 
@@ -142,3 +141,26 @@ def save_song(user_id, title, lyrics, genre, audio_url, style, instruments, is_p
     except Exception as e:
         print("Lỗi lưu bài hát:", e)
         return False
+
+def sync_user_profiles():
+    try:
+        # Lấy tất cả người dùng từ bảng auth.users
+        users = supabase.table("auth.users").select("id", "full_name").execute()
+
+        for user in users.data:
+            user_id = user["id"]
+            full_name = user["full_name"]
+
+            # Kiểm tra nếu người dùng đã tồn tại trong bảng user_profiles
+            profile_data = supabase.table("user_profiles").select("id").eq("id", user_id).execute()
+            if not profile_data.data or len(profile_data.data) == 0:
+                # Thêm mới vào bảng user_profiles
+                supabase.table("user_profiles").insert({
+                    "id": user_id,
+                    "full_name": full_name,
+                    "role": "user"  # Mặc định vai trò là "user"
+                }).execute()
+
+        print("✅ Đồng bộ dữ liệu thành công!")
+    except Exception as e:
+        print(f"❌ Lỗi khi đồng bộ dữ liệu: {str(e)}")
