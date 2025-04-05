@@ -144,45 +144,6 @@ def decode_email(encoded):
         return base64.b64decode(encoded.encode()).decode()
     except Exception:
         return None
-def sync_users_to_user_profiles():
-    try:
-        # Lấy tất cả người dùng từ auth.users
-        users = supabase.table("auth.users").select("id, email").execute()
-
-        if not users.data:
-            print("Không có người dùng nào trong bảng auth.users.")
-            return
-
-        # Lặp qua từng người dùng và thêm vào bảng user_profiles
-        for user in users.data:
-            if user.data and len(user.data) > 0:  # Kiểm tra nếu có dữ liệu trả về
-                user_id = user.data[0]["id"]  # Truy cập thông tin từ `user.data`
-            else:
-                st.error("Không tìm thấy thông tin người dùng.")
-
-            email = user["email"]
-
-            # Kiểm tra xem người dùng đã tồn tại trong user_profiles chưa
-            existing_user = supabase.table("user_profiles").select("id").eq("id", user_id).execute()
-
-            if existing_user.data and len(existing_user.data) > 0:  # Kiểm tra dữ liệu trả về
-                print(f"Người dùng đã tồn tại: {existing_user.data[0]['id']}")
-            else:
-                print("Người dùng chưa tồn tại.")
-                continue
-
-            # Thêm người dùng mới vào user_profiles
-            supabase.table("user_profiles").insert({
-                "id": user_id,
-                "full_name": None,  # Nếu không có tên đầy đủ, để trống
-                "email": email,
-                "credit_balance": 0  # Giá trị mặc định
-            }).execute()
-
-            print(f"Đã thêm người dùng {email} vào user_profiles.")
-
-    except Exception as e:
-        print(f"Lỗi khi đồng bộ dữ liệu: {e}")
 
 with st.sidebar:
     st.image("a-minimalist-logo-design-on-a-black-back.jpeg", use_container_width=True)
@@ -195,7 +156,6 @@ with st.sidebar:
         if decoded_email:
             st.session_state['user'] = {'email': decoded_email}
 
-    # Nếu chưa đăng nhập, hiển thị menu xác thực
     if "user" not in st.session_state:
         auth_menu = st.radio("🔐 Tài khoản", ["Đăng nhập", "Đăng ký", "Quên mật khẩu"], horizontal=True)
 
@@ -208,25 +168,11 @@ with st.sidebar:
                 from auth import register_user
                 success, msg = register_user(email, password, full_name)
                 if success:
-                    # Truy vấn thông tin người dùng từ bảng auth.users
-                    user_data = supabase.table("auth.users").select("id").eq("email", email).execute()
-                    if user_data.data:
-                        user_id = user_data.data[0]["id"]
-                        # Tạo bản ghi trong bảng user_profiles
-                        supabase.table("user_profiles").insert({
-                            "id": user_id,
-                            "full_name": full_name,
-                            "role": "client"
-                        }).execute()
-
-                        # Lưu thông tin người dùng vào session_state
-                        st.session_state["user"] = {"email": email, "id": user_id}
-                        # cookies["user_email"] = encode_email(email)
-                        # cookies.save()
-                        st.success(msg)
-                        st.info("📧 Vui lòng kiểm tra hộp thư để xác minh tài khoản trước khi đăng nhập.")
-                    else:
-                        st.error("Không thể lấy thông tin người dùng từ Supabase.")
+                    st.session_state['user'] = {'email': email}
+                    cookies["user_email"] = encode_email(email)
+                    cookies.save()
+                    st.success(msg)
+                    st.info("📧 Vui lòng kiểm tra hộp thư để xác minh tài khoản trước khi đăng nhập.")
                 else:
                     st.error(msg)
 
@@ -238,26 +184,10 @@ with st.sidebar:
                 from auth import login_user
                 success, msg = login_user(email, password)
                 if success:
-                    # Truy vấn thông tin người dùng từ bảng auth.users
-                    user_data = supabase.table("auth.users").select("id").eq("email", email).execute()
-                    if user_data.data:
-                        user_id = user_data.data[0]["id"]
-                        # Truy vấn thông tin từ bảng user_profiles dựa trên id
-                        profile_data = supabase.table("user_profiles").select("full_name", "role").eq("id", user_id).execute()
-                        if profile_data.data:
-                            st.session_state["user"] = {
-                                "email": email,
-                                "id": user_id,
-                                "full_name": profile_data.data[0]["full_name"],
-                                "role": profile_data.data[0]["role"]
-                            }
-                            cookies["user_email"] = encode_email(email)
-                            cookies.save()
-                            st.rerun()
-                        else:
-                            st.error("Không thể lấy thông tin người dùng từ Supabase.")
-                    else:
-                        st.error("Không tìm thấy người dùng với email này trong hệ thống.")
+                    st.session_state['user'] = {'email': email}
+                    cookies["user_email"] = encode_email(email)
+                    cookies.save()
+                    st.rerun()
                 else:
                     st.error(msg)
 
@@ -271,10 +201,7 @@ with st.sidebar:
                     st.success("📬 Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư đến.")
                 except Exception as e:
                     st.error(f"❌ Lỗi khi gửi email: {e}")
-if __name__ == "__main__":
-    sync_users_to_user_profiles()
 
-    # Nếu đã đăng nhập, hiển thị thông tin người dùng
     if "user" in st.session_state:
         st.markdown(f"👋 Xin chào, **{st.session_state['user']['email']}**")
         st.markdown("📌 Bạn có thể sử dụng toàn bộ chức năng")
@@ -287,6 +214,7 @@ if __name__ == "__main__":
     else:
         st.markdown("👤 Bạn đang truy cập với tư cách **khách**")
         st.info("👉 Vui lòng đăng nhập để mở khoá các tính năng chính.")
+
 
     # Menu chính
     menu = option_menu(
@@ -719,24 +647,6 @@ if menu == "Feel The Beat":
     asyncio.run(Feel_The_Beat())
 
 # =========================== PAYMENT MANAGEMENT ===========================
-if menu == "Quản lý thanh toán":
-    st.markdown("<h1>Quản lý thanh toán</h1>", unsafe_allow_html=True)
-
-    # Lấy thông tin người dùng từ session
-    if "user" in st.session_state:
-        user_email = st.session_state["user"]["email"]
-
-        # Truy vấn ID người dùng từ bảng auth.users
-        user = supabase.table("auth.users").select("id").eq("email", user_email).execute()
-
-        if user.data:
-            user_id = user.data[0]["id"]
-            payment_management(user_id)
-        else:
-            st.error("Không tìm thấy thông tin người dùng.")
-    else:
-        st.warning("Vui lòng đăng nhập để quản lý thanh toán.")
-
 # API Key cho Apilayer
 APILAYER_KEY = "qf4h6PVtQlWfqPBrQEgStY3eHeEuk88E"
 
@@ -796,53 +706,18 @@ def create_momo_payment(order_id, amount, order_info):
     return None
 
 # Trang PAYMENT MANAGEMENT
-def payment_management(user_id, transaction_amount, transaction_type):
-    try:
-        # Truy vấn dữ liệu người dùng
-        user_data = supabase.table("user_profiles").select("credit_balance").eq("id", user_id).execute()
+def payment_management(user_id):
+    st.title("Quản lý thanh toán")
 
-        # Kiểm tra nếu không có dữ liệu trả về
-        if not user_data.data:
-            st.error("Không tìm thấy thông tin người dùng. Vui lòng kiểm tra lại.")
-            return
+    # Truy vấn số dư tín dụng
+    user_data = supabase.table("user_profiles").select("credit_balance").eq("id", user_id).execute()
+    if user_data.data:
+        credit_balance = user_data.data[0].get("credit_balance", 0)
+    else:
+        st.error("Không thể lấy thông tin người dùng.")
+        return
 
-        # Lấy số dư tín dụng hiện tại
-        if user_data.data and len(user_data.data) > 0:  # Kiểm tra dữ liệu trả về
-            credit_balance = user_data.data[0]["credit_balance"]
-        else:
-            st.error("Không tìm thấy thông tin người dùng.")
-
-        # Cập nhật số dư dựa trên loại giao dịch
-        if transaction_type == "deposit":
-            new_balance = credit_balance + transaction_amount
-        elif transaction_type == "withdraw":
-            if transaction_amount > credit_balance:
-                st.error("Số dư không đủ để thực hiện giao dịch.")
-                return
-            new_balance = credit_balance - transaction_amount
-        else:
-            st.error("Loại giao dịch không hợp lệ. Vui lòng chọn 'deposit' hoặc 'withdraw'.")
-            return
-
-        # Cập nhật số dư tín dụng trong bảng user_profiles
-        supabase.table("user_profiles").update({"credit_balance": new_balance}).eq("id", user_id).execute()
-
-        # Lưu thông tin giao dịch vào bảng transaction
-        transaction_data = {
-            "user_id": user_id,
-            "amount": transaction_amount,
-            "type": transaction_type,
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")  # Lấy thời gian hiện tại
-        }
-        supabase.table("transaction").insert(transaction_data).execute()
-
-        # Hiển thị thông báo thành công
-        st.success(f"Giao dịch thành công! Số dư mới: {new_balance}")
-
-    except Exception as e:
-        st.error(f"Lỗi khi xử lý giao dịch: {e}")
-        print(f"Lỗi chi tiết: {e}")
-
+    st.subheader(f"Số dư tín dụng của bạn: {credit_balance} tín dụng")
 
     # Danh sách gói tín dụng
     packages = {
@@ -882,10 +757,8 @@ def payment_management(user_id, transaction_amount, transaction_type):
         st.error("Lỗi khi xử lý giao dịch.")
 
 # Kiểm tra người dùng đã đăng nhập
-if "user" in st.session_state and "id" in st.session_state["user"]:
+if "user" in st.session_state:
     user_id = st.session_state["user"]["id"]
     payment_management(user_id)
 else:
     st.warning("Vui lòng đăng nhập để quản lý thanh toán.")
-
-
