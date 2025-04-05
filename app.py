@@ -144,6 +144,40 @@ def decode_email(encoded):
         return base64.b64decode(encoded.encode()).decode()
     except Exception:
         return None
+def sync_users_to_user_profiles():
+    try:
+        # Lấy tất cả người dùng từ auth.users
+        users = supabase.table("auth.users").select("id, email").execute()
+
+        if not users.data:
+            print("Không có người dùng nào trong bảng auth.users.")
+            return
+
+        # Lặp qua từng người dùng và thêm vào bảng user_profiles
+        for user in users.data:
+            user_id = user["id"]
+            email = user["email"]
+
+            # Kiểm tra xem người dùng đã tồn tại trong user_profiles chưa
+            existing_user = supabase.table("user_profiles").select("id").eq("id", user_id).execute()
+
+            if existing_user.data:
+                print(f"Người dùng {email} đã tồn tại trong user_profiles.")
+                continue
+
+            # Thêm người dùng mới vào user_profiles
+            supabase.table("user_profiles").insert({
+                "id": user_id,
+                "full_name": None,  # Nếu không có tên đầy đủ, để trống
+                "email": email,
+                "credit_balance": 0  # Giá trị mặc định
+            }).execute()
+
+            print(f"Đã thêm người dùng {email} vào user_profiles.")
+
+    except Exception as e:
+        print(f"Lỗi khi đồng bộ dữ liệu: {e}")
+
 with st.sidebar:
     st.image("a-minimalist-logo-design-on-a-black-back.jpeg", use_container_width=True)
 
