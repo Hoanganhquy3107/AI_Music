@@ -155,14 +155,20 @@ def sync_users_to_user_profiles():
 
         # Lặp qua từng người dùng và thêm vào bảng user_profiles
         for user in users.data:
-            user_id = user["id"]
+            if user.data and len(user.data) > 0:  # Kiểm tra nếu có dữ liệu trả về
+                user_id = user.data[0]["id"]  # Truy cập thông tin từ `user.data`
+            else:
+                st.error("Không tìm thấy thông tin người dùng.")
+
             email = user["email"]
 
             # Kiểm tra xem người dùng đã tồn tại trong user_profiles chưa
             existing_user = supabase.table("user_profiles").select("id").eq("id", user_id).execute()
 
-            if existing_user.data:
-                print(f"Người dùng {email} đã tồn tại trong user_profiles.")
+            if existing_user.data and len(existing_user.data) > 0:  # Kiểm tra dữ liệu trả về
+                print(f"Người dùng đã tồn tại: {existing_user.data[0]['id']}")
+            else:
+                print("Người dùng chưa tồn tại.")
                 continue
 
             # Thêm người dùng mới vào user_profiles
@@ -801,7 +807,10 @@ def payment_management(user_id, transaction_amount, transaction_type):
             return
 
         # Lấy số dư tín dụng hiện tại
-        credit_balance = user_data.data[0]["credit_balance"]
+        if user_data.data and len(user_data.data) > 0:  # Kiểm tra dữ liệu trả về
+            credit_balance = user_data.data[0]["credit_balance"]
+        else:
+            st.error("Không tìm thấy thông tin người dùng.")
 
         # Cập nhật số dư dựa trên loại giao dịch
         if transaction_type == "deposit":
