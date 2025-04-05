@@ -34,7 +34,6 @@ import hmac
 import hashlib
 import uuid
 
-
 st.set_page_config(page_title="Music AI Website", layout="wide")
 # Lấy API key từ secrets.toml
 openai.api_key = st.secrets["general"]["OPENAI_API_KEY"]
