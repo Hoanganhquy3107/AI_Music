@@ -161,23 +161,29 @@ def decode_email(encoded):
 # ============================================
 def register_user(email, password, full_name):
     try:
+        # Mã hóa mật khẩu
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        user_data = supabase.table("auth.users").insert({
-            "email": email,
-            "password": hashed_password,
-            "full_name": full_name
-        }).execute()
 
-        user_id = user_data.data[0]["id"]  # Đảm bảo `user_data` chứa dữ liệu
+        # Tạo người dùng trong bảng auth.users
+        user_data = supabase.auth.sign_up({
+            "email": email,
+            "password": hashed_password
+        })
+
+        # Lấy user_id từ kết quả trả về
+        user_id = user_data["user"]["id"]
+
+        # Lưu thông tin bổ sung vào bảng public.user_profiles
         supabase.table("public.user_profiles").insert({
-            "id": user_id,
+            "id": user_id,  # Liên kết với user_id trong auth.users
             "full_name": full_name,
-            "role": "user"
+            "role": "user"  # Gán vai trò mặc định là "user"
         }).execute()
 
         return True, "✅ Đăng ký thành công!"
     except Exception as e:
         return False, f"❌ Lỗi khi đăng ký: {str(e)}"
+
 
 
 # ============================================
