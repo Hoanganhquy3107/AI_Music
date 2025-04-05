@@ -265,6 +265,8 @@ with st.sidebar:
                     st.success("📬 Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư đến.")
                 except Exception as e:
                     st.error(f"❌ Lỗi khi gửi email: {e}")
+if __name__ == "__main__":
+    sync_users_to_user_profiles()
 
     # Nếu đã đăng nhập, hiển thị thông tin người dùng
     if "user" in st.session_state:
@@ -711,6 +713,24 @@ if menu == "Feel The Beat":
     asyncio.run(Feel_The_Beat())
 
 # =========================== PAYMENT MANAGEMENT ===========================
+if menu == "Quản lý thanh toán":
+    st.markdown("<h1>Quản lý thanh toán</h1>", unsafe_allow_html=True)
+
+    # Lấy thông tin người dùng từ session
+    if "user" in st.session_state:
+        user_email = st.session_state["user"]["email"]
+
+        # Truy vấn ID người dùng từ bảng auth.users
+        user = supabase.table("auth.users").select("id").eq("email", user_email).execute()
+
+        if user.data:
+            user_id = user.data[0]["id"]
+            payment_management(user_id)
+        else:
+            st.error("Không tìm thấy thông tin người dùng.")
+    else:
+        st.warning("Vui lòng đăng nhập để quản lý thanh toán.")
+
 # API Key cho Apilayer
 APILAYER_KEY = "qf4h6PVtQlWfqPBrQEgStY3eHeEuk88E"
 
@@ -770,18 +790,50 @@ def create_momo_payment(order_id, amount, order_info):
     return None
 
 # Trang PAYMENT MANAGEMENT
-def payment_management(user_id):
-    st.title("Quản lý thanh toán")
+def payment_management(user_id, transaction_amount, transaction_type):
+    try:
+        # Truy vấn dữ liệu người dùng
+        user_data = supabase.table("user_profiles").select("credit_balance").eq("id", user_id).execute()
 
-    # Truy vấn số dư tín dụng
-    user_data = supabase.table("user_profiles").select("credit_balance").eq("id", user_id).execute()
-    if user_data.data:
-        credit_balance = user_data.data[0].get("credit_balance", 0)
-    else:
-        st.error("Không thể lấy thông tin người dùng.")
-        return
+        # Kiểm tra nếu không có dữ liệu trả về
+        if not user_data.data:
+            st.error("Không tìm thấy thông tin người dùng. Vui lòng kiểm tra lại.")
+            return
 
-    st.subheader(f"Số dư tín dụng của bạn: {credit_balance} tín dụng")
+        # Lấy số dư tín dụng hiện tại
+        credit_balance = user_data.data[0]["credit_balance"]
+
+        # Cập nhật số dư dựa trên loại giao dịch
+        if transaction_type == "deposit":
+            new_balance = credit_balance + transaction_amount
+        elif transaction_type == "withdraw":
+            if transaction_amount > credit_balance:
+                st.error("Số dư không đủ để thực hiện giao dịch.")
+                return
+            new_balance = credit_balance - transaction_amount
+        else:
+            st.error("Loại giao dịch không hợp lệ. Vui lòng chọn 'deposit' hoặc 'withdraw'.")
+            return
+
+        # Cập nhật số dư tín dụng trong bảng user_profiles
+        supabase.table("user_profiles").update({"credit_balance": new_balance}).eq("id", user_id).execute()
+
+        # Lưu thông tin giao dịch vào bảng transaction
+        transaction_data = {
+            "user_id": user_id,
+            "amount": transaction_amount,
+            "type": transaction_type,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")  # Lấy thời gian hiện tại
+        }
+        supabase.table("transaction").insert(transaction_data).execute()
+
+        # Hiển thị thông báo thành công
+        st.success(f"Giao dịch thành công! Số dư mới: {new_balance}")
+
+    except Exception as e:
+        st.error(f"Lỗi khi xử lý giao dịch: {e}")
+        print(f"Lỗi chi tiết: {e}")
+
 
     # Danh sách gói tín dụng
     packages = {
