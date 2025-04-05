@@ -158,9 +158,8 @@ with st.sidebar:
 
     if "user" not in st.session_state:
         auth_menu = st.radio("🔐 Tài khoản", ["Đăng nhập", "Đăng ký", "Quên mật khẩu"], horizontal=True)
-
         if auth_menu == "Đăng ký":
-    st.subheader("✍️ Đăng ký tài khoản")
+             st.subheader("✍️ Đăng ký tài khoản")
     full_name = st.text_input("Họ tên")
     email = st.text_input("Email")
     password = st.text_input("Mật khẩu", type="password")
@@ -168,10 +167,18 @@ with st.sidebar:
         from auth import register_user
         success, msg = register_user(email, password, full_name)
         if success:
-            # Truy vấn thông tin người dùng từ Supabase
-            user_data = supabase.table("user_profiles").select("id").eq("email", email).execute()
+            # Truy vấn thông tin người dùng từ bảng auth.users
+            user_data = supabase.table("auth.users").select("id").eq("email", email).execute()
             if user_data.data:
                 user_id = user_data.data[0]["id"]
+                # Tạo bản ghi trong bảng user_profiles
+                supabase.table("user_profiles").insert({
+                    "id": user_id,
+                    "full_name": full_name,
+                    "role": "client"
+                }).execute()
+
+                # Lưu thông tin người dùng vào session_state
                 st.session_state["user"] = {"email": email, "id": user_id}
                 cookies["user_email"] = encode_email(email)
                 cookies.save()
@@ -181,8 +188,6 @@ with st.sidebar:
                 st.error("Không thể lấy thông tin người dùng từ Supabase.")
         else:
             st.error(msg)
-
-
         elif auth_menu == "Đăng nhập":
     st.subheader("🔑 Đăng nhập")
     email = st.text_input("Email đăng nhập")
