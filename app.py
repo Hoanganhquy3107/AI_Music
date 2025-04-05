@@ -156,6 +156,7 @@ with st.sidebar:
         if decoded_email:
             st.session_state['user'] = {'email': decoded_email}
 
+    # Xử lý khi người dùng chưa đăng nhập
     if "user" not in st.session_state:
         auth_menu = st.radio("🔐 Tài khoản", ["Đăng nhập", "Đăng ký", "Quên mật khẩu"], horizontal=True)
 
@@ -184,10 +185,32 @@ with st.sidebar:
                 from auth import login_user
                 success, msg = login_user(email, password)
                 if success:
-                    st.session_state['user'] = {'email': email}
-                    cookies["user_email"] = encode_email(email)
-                    cookies.save()
-                    st.rerun()
+                    try:
+                        # Lấy thông tin người dùng từ bảng `auth.users`
+                        user_data = supabase.table("auth.users").select("id").eq("email", email).execute()
+                        if user_data.data and len(user_data.data) > 0:
+                            user_id = user_data.data[0]["id"]
+                            
+                            # Lấy thông tin chi tiết từ bảng `user_profiles`
+                            profile_data = supabase.table("user_profiles").select("full_name", "role").eq("id", user_id).execute()
+                            if profile_data.data and len(profile_data.data) > 0:
+                                st.session_state["user"] = {
+                                    "email": email,
+                                    "id": user_id,  # Thêm ID vào session_state
+                                    "full_name": profile_data.data[0]["full_name"],
+                                    "role": profile_data.data[0]["role"]
+                                }
+                                # Lưu email vào cookies
+                                cookies["user_email"] = encode_email(email)
+                                cookies.save()
+                                st.success(f"✅ Đăng nhập thành công! Xin chào, {profile_data.data[0]['full_name']}.")
+                                st.rerun()
+                            else:
+                                st.error("❌ Không thể lấy thông tin hồ sơ người dùng từ Supabase.")
+                        else:
+                            st.error("❌ Không tìm thấy người dùng với email này trong hệ thống.")
+                    except Exception as e:
+                        st.error(f"❌ Đã xảy ra lỗi khi kết nối với Supabase: {e}")
                 else:
                     st.error(msg)
 
@@ -202,6 +225,7 @@ with st.sidebar:
                 except Exception as e:
                     st.error(f"❌ Lỗi khi gửi email: {e}")
 
+    # Xử lý khi người dùng đã đăng nhập
     if "user" in st.session_state:
         st.markdown(f"👋 Xin chào, **{st.session_state['user']['email']}**")
         st.markdown("📌 Bạn có thể sử dụng toàn bộ chức năng")
@@ -214,7 +238,6 @@ with st.sidebar:
     else:
         st.markdown("👤 Bạn đang truy cập với tư cách **khách**")
         st.info("👉 Vui lòng đăng nhập để mở khoá các tính năng chính.")
-
 
     # Menu chính
     menu = option_menu(
@@ -647,6 +670,18 @@ if menu == "Feel The Beat":
     asyncio.run(Feel_The_Beat())
 
 # =========================== PAYMENT MANAGEMENT ===========================
+if menu == "Quản lý thanh toán":
+    st.title("💳 Quản lý thanh toán")
+    amount = st.number_input("Nhập số tiền cần thanh toán:", min_value=0)
+    if st.button("Thanh toán"):
+        if "user" in st.session_state and "id" in st.session_state["user"]:
+            user_id = st.session_state["user"]["i"]
+            # Logic thanh toán (thay manage_payment bằng hàm của bạn)
+            result = f"Thanh toán thành công cho user_id: {user_id} với số tiền: {amount}."
+            st.write(result)
+        else:
+            st.warning("Vui lòng đăng nhập để thực hiện thanh toán.")
+
 # API Key cho Apilayer
 APILAYER_KEY = "qf4h6PVtQlWfqPBrQEgStY3eHeEuk88E"
 
