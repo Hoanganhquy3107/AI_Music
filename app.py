@@ -856,10 +856,13 @@ if menu == "Quản lý thanh toán":
         st.stop()
 
     user_id = st.session_state["user"]["id"]
+
+    # Lấy số dư hiện tại
     credit_data = supabase.table("user_credits").select("credits").eq("id", user_id).execute()
     credits = credit_data.data[0]["credits"] if credit_data.data else 0
     st.metric("Tín dụng hiện có", f"{credits:,} credits")
 
+    # Bảng giá
     st.subheader("📦 Gói tín dụng")
     usd_to_vnd = get_usd_to_vnd()
     selected_package = st.selectbox(
@@ -869,10 +872,12 @@ if menu == "Quản lý thanh toán":
     package = next(p for p in CREDIT_PACKAGES if f"{p['credits']:,}" in selected_package)
     price_vnd = int(package['price_usd'] * usd_to_vnd)
 
+    # Tạo đơn hàng thanh toán
     if st.button("🔁 Thanh toán bằng MoMo"):
         order_id = str(uuid.uuid4())
         request_id = str(uuid.uuid4())
         order_info = f"Mua {package['credits']} credits cho user {user_id}"
+
         payload = {
             "partnerCode": MOMO_CONFIG["PartnerCode"],
             "accessKey": MOMO_CONFIG["AccessKey"],
@@ -890,20 +895,29 @@ if menu == "Quản lý thanh toán":
         res = requests.post(MOMO_CONFIG["MomoApiUrl"], json=payload)
         if res.status_code == 200 and res.json().get("payUrl"):
             pay_url = res.json()["payUrl"]
+
+            # Lưu đơn hàng pending
             supabase.table("pending_payments").insert({
                 "user_id": user_id,
                 "order_id": order_id,
                 "credits": package["credits"],
                 "amount": price_vnd
             }).execute()
-            components.html(f"""
-                <script>window.open('{pay_url}', '_blank');</script>
-                <p>MoMo đã được mở trong tab mới. Quay lại để xác nhận thanh toán.</p>
-            """, height=100)
+
+            # Hiển thị nút thanh toán
+            st.success("✅ Đơn hàng đã được tạo. Bấm nút bên dưới để thanh toán.")
+            st.markdown(f"""
+                <a href="{pay_url}" target="_blank">
+                    <button style="background-color:#f72585; color:white; padding:10px 20px;
+                                   border:none; border-radius:5px; cursor:pointer;">
+                        🚀 Mở MoMo để thanh toán
+                    </button>
+                </a>
+            """, unsafe_allow_html=True)
         else:
             st.error("❌ Không tạo được đơn hàng.")
 
-    # Xử lý khi quay về từ MoMo hoặc không có orderId
+    # ✅ Xử lý khi quay lại từ MoMo qua ReturnUrl
     params = st.query_params
     order_id_param = params.get("orderId")
     result_code = params.get("resultCode")
@@ -933,13 +947,18 @@ if menu == "Quản lý thanh toán":
                     supabase.table("pending_payments").delete().eq("order_id", order_id_param).execute()
                     st.success(f"✅ Đã cộng {pending['credits']:,} tín dụng.")
                     st.rerun()
-              
-
-    elif "mock_payment_confirmed" not in st.session_state:
+                else:
+                    st.warning("❌ Thanh toán thất bại hoặc bị huỷ.")
+    
+    # ✅ Trường hợp không có orderId → Kiểm tra đơn pending chưa xác nhận
+    if not order_id_param:
         pending_query = supabase.table("pending_payments").select("*").eq("user_id", user_id).execute()
         pending_data = pending_query.data[0] if pending_query.data else None
-        if pending_data:
-            if st.button("✅ Xác nhận thanh toán thành công"):
+
+        if pending_data and not st.session_state.get("mock_payment_confirmed", False):
+            st.warning(f"⚠️ Bạn có đơn hàng chưa hoàn tất: {pending_data['credits']:,} credits – {pending_data['amount']:,}₫")
+
+            if st.button("✅ Xác nhận thanh toán thành công (giả lập)"):
                 supabase.table("user_credits").update({"credits": credits + pending_data["credits"]}).eq("id", user_id).execute()
                 supabase.table("payment_history").insert({
                     "user_id": user_id,
@@ -955,6 +974,7 @@ if menu == "Quản lý thanh toán":
                 st.session_state["mock_payment_confirmed"] = True
                 st.success("✅ Đã xác nhận thanh toán và cộng tín dụng.")
                 st.rerun()
+
 
 
     
