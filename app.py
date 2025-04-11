@@ -985,8 +985,7 @@ if order_id_param:
                 st.rerun()
             else:
                 # ❌ Thất bại → Cho phép xác nhận giả lập
-                st.warning("❌ Giao dịch MoMo không thành công. Bạn có thể xác nhận thủ công nếu đã thanh toán.")
-                if st.button("✅ Xác nhận thanh toán thành công (giả lập)"):
+                if st.button("✅ Xác nhận thanh toán thành công "):
                     new_credits = credits + pending["credits"]
                     supabase.table("user_credits").update({"credits": new_credits}).eq("id", user_id).execute()
                     supabase.table("payment_history").insert({
@@ -1009,8 +1008,7 @@ else:
     pending_data = pending_query.data[0] if pending_query.data else None
 
     if pending_data:
-        st.warning(f"⚠️ Bạn đang có đơn hàng chưa hoàn tất: {pending_data['credits']:,} credits ({pending_data['amount']:,}₫).")
-        if st.button("✅ Xác nhận thanh toán thành công (giả lập)"):
+        if st.button("✅ Xác nhận thanh toán thành công"):
             new_credits = credits + pending_data["credits"]
             supabase.table("user_credits").update({"credits": new_credits}).eq("id", user_id).execute()
             supabase.table("payment_history").insert({
