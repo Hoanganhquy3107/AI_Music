@@ -799,7 +799,6 @@ if menu == "Library":
         st.warning("🔒 Bạn cần đăng nhập để xem thư viện nhạc của bạn.")
 
 # =========================== QUẢN LÝ THANH TOÁN ===========================
-# Thêm các thư viện cần thiết
 import streamlit as st
 import requests
 import hmac
@@ -807,9 +806,9 @@ import hashlib
 import uuid
 from datetime import datetime
 from supabase import create_client
-import re
+import streamlit.components.v1 as components
 
-# MoMo config (gán trực tiếp)
+# MoMo config
 MOMO_CONFIG = {
     "MomoApiUrl": "https://test-payment.momo.vn/v2/gateway/api/create",
     "PartnerCode": "MOMO",
@@ -817,11 +816,10 @@ MOMO_CONFIG = {
     "SecretKey": "K951B6PE1waDMi640xX08PD3vg6EkVlz",
     "ReturnUrl": "https://aimusic-fvj4bjxfbumlktejiy6gb4.streamlit.app/",
     "IpnUrl": "https://webhook.site/b052aaf4-3be0-43c5-8bad-996d2d0c0e54",
-    "RequestType": "captureWallet",  # ✅ API v2 yêu cầu đúng như vậy
+    "RequestType": "captureWallet",
     "ExtraData": "Astronaut_Music_payment"
 }
 
-# Gói tín dụng
 CREDIT_PACKAGES = [
     {"credits": 1000, "price_usd": 5},
     {"credits": 10000, "price_usd": 50},
@@ -829,28 +827,19 @@ CREDIT_PACKAGES = [
     {"credits": 275000, "price_usd": 1250}
 ]
 
-# Tỷ giá USD ➝ VND
-@st.cache_data(ttl=86400)  # Cache 1 ngày
+@st.cache_data(ttl=86400)
 def get_usd_to_vnd():
     try:
         url = "https://v6.exchangerate-api.com/v6/5bfc9ccf0ed4b1708159250f/latest/USD"
         res = requests.get(url)
         if res.status_code == 200:
-            data = res.json()
-            rate = data["conversion_rates"]["VND"]
+            rate = res.json()["conversion_rates"]["VND"]
             st.write(f"💱 Tỷ giá USD → VND (ExchangeRate-API): {rate:,.0f}")
             return int(rate)
-        else:
-            st.warning("⚠️ Không thể lấy tỷ giá từ ExchangeRate-API.")
-            return 25000
-    except Exception as e:
-        st.error(f"❌ Lỗi khi lấy tỷ giá: {e}")
-        return 25000
+    except:
+        st.error("❌ Lỗi khi lấy tỷ giá.")
+    return 25000
 
-
-
-
-# Hàm tạo chữ ký MoMo
 def generate_signature(data, secret_key):
     raw_signature = (
         f"accessKey={data['accessKey']}&amount={data['amount']}&extraData={data['extraData']}&"
@@ -860,29 +849,19 @@ def generate_signature(data, secret_key):
     )
     return hmac.new(secret_key.encode(), raw_signature.encode(), hashlib.sha256).hexdigest()
 
-
-# Thêm vào phần xử lý menu
 if menu == "Quản lý thanh toán":
     st.title("💰 Quản Lý Thanh Toán")
-    # st.write("🪪 Phiên đăng nhập:", st.session_state.get("user"))
     if "user" not in st.session_state:
-        st.warning("🔐 Vui lòng đăng nhập để sử dụng tính năng thanh toán.")
+        st.warning("🔐 Vui lòng đăng nhập.")
         st.stop()
-    # if cookies.ready() and cookies.get("user_id"):
-    #     st.session_state["user"]["id"] = cookies.get("user_id")
 
-    st.header("💳 Quản lý thanh toán và tín dụng")
     user_id = st.session_state["user"]["id"]
-
-    # Lấy số dư
     credit_data = supabase.table("user_credits").select("credits").eq("id", user_id).execute()
     credits = credit_data.data[0]["credits"] if credit_data.data else 0
     st.metric("Tín dụng hiện có", f"{credits:,} credits")
 
-    # Bảng giá
     st.subheader("📦 Gói tín dụng")
     usd_to_vnd = get_usd_to_vnd()
-    
     selected_package = st.selectbox(
         "Chọn gói mua:",
         [f"{p['credits']:,} credits - ${p['price_usd']}" for p in CREDIT_PACKAGES]
@@ -890,12 +869,10 @@ if menu == "Quản lý thanh toán":
     package = next(p for p in CREDIT_PACKAGES if f"{p['credits']:,}" in selected_package)
     price_vnd = int(package['price_usd'] * usd_to_vnd)
 
-    # Tạo đơn hàng
     if st.button("🔁 Thanh toán bằng MoMo"):
         order_id = str(uuid.uuid4())
         request_id = str(uuid.uuid4())
         order_info = f"Mua {package['credits']} credits cho user {user_id}"
-
         payload = {
             "partnerCode": MOMO_CONFIG["PartnerCode"],
             "accessKey": MOMO_CONFIG["AccessKey"],
@@ -910,120 +887,75 @@ if menu == "Quản lý thanh toán":
         }
         payload["signature"] = generate_signature(payload, MOMO_CONFIG["SecretKey"])
 
-        headers = {"Content-Type": "application/json"}
         res = requests.post(MOMO_CONFIG["MomoApiUrl"], json=payload)
-        try:
-            res_data = res.json()
-        except Exception as e:
-            st.error("Phản hồi không hợp lệ từ MoMo.")
-            st.text(res.text)
-            st.stop()
-
-        # st.write("📩 Phản hồi từ MoMo:", res_data)
         if res.status_code == 200 and res.json().get("payUrl"):
-            # Lưu pending đơn hàng NGAY LẬP TỨC
+            pay_url = res.json()["payUrl"]
             supabase.table("pending_payments").insert({
                 "user_id": user_id,
                 "order_id": order_id,
                 "credits": package["credits"],
                 "amount": price_vnd
             }).execute()
-
-            st.session_state["pending_order"] = {
-                "order_id": order_id,
-                "credits": package['credits'],
-                "amount": price_vnd
-            }
-            pay_url = res_data["payUrl"]
-            st.success("✅ Đơn hàng đã được tạo. Bấm nút bên dưới để thanh toán.")
-            pay_url = res_data["payUrl"]
             components.html(f"""
-                <script>
-                    window.open("{pay_url}", "_blank");
-                </script>
-                <p>🔄 Đã mở MoMo trong tab mới. Sau khi thanh toán xong, hãy quay lại trang này.</p>
+                <script>window.open('{pay_url}', '_blank');</script>
+                <p>MoMo đã được mở trong tab mới. Quay lại để xác nhận thanh toán.</p>
             """, height=100)
-
         else:
-            st.error("Không thể tạo thanh toán.")
-            st.text(f"Trạng thái HTTP: {res.status_code}")
-            st.text(f"Thông báo lỗi: {res_data.get('message')}")
-    
-    # ✅ Xử lý khi redirect về từ MoMo (ReturnUrl)
-params = st.query_params
-order_id_param = params.get("orderId")
-result_code = params.get("resultCode")
-trans_id = params.get("transId")
-amount = int(params.get("amount", "0"))
+            st.error("❌ Không tạo được đơn hàng.")
 
-# Nếu có orderId → xử lý theo kết quả thanh toán MoMo
-if order_id_param:
-    exists = supabase.table("payment_history").select("*").eq("order_id", order_id_param).execute()
-    if exists.data:
-        st.info("Giao dịch này đã được xử lý.")
-    else:
-        pending = supabase.table("pending_payments").select("*").eq("order_id", order_id_param).execute().data
-        if pending:
-            pending = pending[0]
+    # Xử lý khi quay về từ MoMo hoặc không có orderId
+    params = st.query_params
+    order_id_param = params.get("orderId")
+    result_code = params.get("resultCode")
+    trans_id = params.get("transId")
+    amount = int(params.get("amount", "0"))
 
-            if result_code == "0":
-                # ✅ Thành công thực
-                new_credits = credits + pending["credits"]
-                supabase.table("user_credits").update({"credits": new_credits}).eq("id", user_id).execute()
-                supabase.table("payment_history").insert({
-                    "user_id": user_id,
-                    "order_id": order_id_param,
-                    "amount": amount,
-                    "credits": pending["credits"],
-                    "status": "completed",
-                    "payment_method": "momo",
-                    "transaction_id": trans_id,
-                    "created_at": datetime.utcnow().isoformat()
-                }).execute()
-                supabase.table("pending_payments").delete().eq("order_id", order_id_param).execute()
-                st.success(f"✅ Đã cộng {pending['credits']:,} tín dụng vào tài khoản.")
-                st.rerun()
-            else:
-                # ❌ Thất bại → Cho phép xác nhận giả lập
-                if st.button("✅ Xác nhận thanh toán thành công "):
-                    new_credits = credits + pending["credits"]
-                    supabase.table("user_credits").update({"credits": new_credits}).eq("id", user_id).execute()
+    if order_id_param:
+        exists = supabase.table("payment_history").select("*").eq("order_id", order_id_param).execute()
+        if exists.data:
+            st.info("Giao dịch đã được xử lý.")
+        else:
+            pending = supabase.table("pending_payments").select("*").eq("order_id", order_id_param).execute().data
+            if pending:
+                pending = pending[0]
+                if result_code == "0":
+                    supabase.table("user_credits").update({"credits": credits + pending["credits"]}).eq("id", user_id).execute()
                     supabase.table("payment_history").insert({
                         "user_id": user_id,
                         "order_id": order_id_param,
-                        "amount": pending["amount"],
+                        "amount": amount,
                         "credits": pending["credits"],
                         "status": "completed",
-                        "payment_method": "momo (mock)",
-                        "transaction_id": str(uuid.uuid4())[:12],
+                        "payment_method": "momo",
+                        "transaction_id": trans_id,
                         "created_at": datetime.utcnow().isoformat()
                     }).execute()
                     supabase.table("pending_payments").delete().eq("order_id", order_id_param).execute()
-                    st.success(f"✅ Đã cộng {pending['credits']:,} tín dụng vào tài khoản (giả lập).")
+                    st.success(f"✅ Đã cộng {pending['credits']:,} tín dụng.")
                     st.rerun()
+              
 
-# Nếu KHÔNG có orderId → kiểm tra xem có đơn pending chưa thanh toán không (mất returnUrl)
-else:
-    pending_query = supabase.table("pending_payments").select("*").eq("user_id", user_id).execute()
-    pending_data = pending_query.data[0] if pending_query.data else None
+    elif "mock_payment_confirmed" not in st.session_state:
+        pending_query = supabase.table("pending_payments").select("*").eq("user_id", user_id).execute()
+        pending_data = pending_query.data[0] if pending_query.data else None
+        if pending_data:
+            if st.button("✅ Xác nhận thanh toán thành công"):
+                supabase.table("user_credits").update({"credits": credits + pending_data["credits"]}).eq("id", user_id).execute()
+                supabase.table("payment_history").insert({
+                    "user_id": user_id,
+                    "order_id": pending_data["order_id"],
+                    "amount": pending_data["amount"],
+                    "credits": pending_data["credits"],
+                    "status": "completed",
+                    "payment_method": "momo (mock)",
+                    "transaction_id": str(uuid.uuid4())[:12],
+                    "created_at": datetime.utcnow().isoformat()
+                }).execute()
+                supabase.table("pending_payments").delete().eq("order_id", pending_data["order_id"]).execute()
+                st.session_state["mock_payment_confirmed"] = True
+                st.success("✅ Đã xác nhận thanh toán và cộng tín dụng.")
+                st.rerun()
 
-    if pending_data:
-        if st.button("✅ Xác nhận thanh toán thành công"):
-            new_credits = credits + pending_data["credits"]
-            supabase.table("user_credits").update({"credits": new_credits}).eq("id", user_id).execute()
-            supabase.table("payment_history").insert({
-                "user_id": user_id,
-                "order_id": pending_data["order_id"],
-                "amount": pending_data["amount"],
-                "credits": pending_data["credits"],
-                "status": "completed",
-                "payment_method": "momo (mock)",
-                "transaction_id": str(uuid.uuid4())[:12],
-                "created_at": datetime.utcnow().isoformat()
-            }).execute()
-            supabase.table("pending_payments").delete().eq("order_id", pending_data["order_id"]).execute()
-            st.success("✅ Giao dịch đã được xác nhận và tín dụng đã được cộng.")
-            st.rerun()
 
     
         
