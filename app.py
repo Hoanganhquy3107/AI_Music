@@ -956,9 +956,8 @@ if menu == "Quản lý thanh toán":
         pending_data = pending_query.data[0] if pending_query.data else None
 
         if pending_data and not st.session_state.get("mock_payment_confirmed", False):
-            st.warning(f"⚠️ Bạn có đơn hàng chưa hoàn tất: {pending_data['credits']:,} credits – {pending_data['amount']:,}₫")
 
-            if st.button("✅ Xác nhận thanh toán thành công (giả lập)"):
+            if st.button("✅ Xác nhận thanh toán thành công"):
                 supabase.table("user_credits").update({"credits": credits + pending_data["credits"]}).eq("id", user_id).execute()
                 supabase.table("payment_history").insert({
                     "user_id": user_id,
