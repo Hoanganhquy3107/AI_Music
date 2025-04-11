@@ -954,29 +954,3 @@ if menu == "Quản lý thanh toán":
     if not order_id_param:
         pending_query = supabase.table("pending_payments").select("*").eq("user_id", user_id).execute()
         pending_data = pending_query.data[0] if pending_query.data else None
-
-        if pending_data and not st.session_state.get("mock_payment_confirmed", False):
-
-            if st.button("✅ Xác nhận thanh toán thành công"):
-                supabase.table("user_credits").update({"credits": credits + pending_data["credits"]}).eq("id", user_id).execute()
-                supabase.table("payment_history").insert({
-                    "user_id": user_id,
-                    "order_id": pending_data["order_id"],
-                    "amount": pending_data["amount"],
-                    "credits": pending_data["credits"],
-                    "status": "completed",
-                    "payment_method": "momo (mock)",
-                    "transaction_id": str(uuid.uuid4())[:12],
-                    "created_at": datetime.utcnow().isoformat()
-                }).execute()
-                supabase.table("pending_payments").delete().eq("order_id", pending_data["order_id"]).execute()
-                st.session_state["mock_payment_confirmed"] = True
-                st.success("✅ Đã xác nhận thanh toán và cộng tín dụng.")
-                st.rerun()
-
-
-
-    
-        
-            
-    
