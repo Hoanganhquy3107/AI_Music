@@ -1,0 +1,69 @@
+2025-04-10 17:43:08,853 - Task exception was never retrieved
+future: <Task finished name='Task-1261' coro=<WebSocketProtocol13.write_message.<locals>.wrapper() done, defined at C:\Users\hoang\anaconda3\envs\project\Lib\site-packages\tornado\websocket.py:1086> exception=WebSocketClosedError()>
+Traceback (most recent call last):
+  File "C:\Users\hoang\anaconda3\envs\project\Lib\site-packages\streamlit\web\bootstrap.py", line 347, in run
+    if asyncio.get_running_loop().is_running():
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: no running event loop
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\hoang\anaconda3\envs\project\Lib\site-packages\tornado\websocket.py", line 1088, in wrapper
+    await fut
+tornado.iostream.StreamClosedError: Stream is closed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\hoang\anaconda3\envs\project\Lib\site-packages\tornado\websocket.py", line 1090, in wrapper
+    raise WebSocketClosedError()
+tornado.websocket.WebSocketClosedError
+2025-04-10 18:04:50,895 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:21:20,317 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:23:07,378 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:24:30,721 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:24:31,321 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:24:32,275 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:24:49,836 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:24:55,253 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:24:58,479 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:26:46,637 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:31:26,039 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:32:28,516 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:33:08,683 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:33:56,549 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 18:38:22,389 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 19:33:05,515 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 19:33:13,749 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 19:33:15,203 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 19:33:20,596 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 19:42:52,121 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 19:42:52,330 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 19:42:56,799 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 19:42:58,333 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 19:43:02,367 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:03:41,660 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:03:45,416 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:03:46,864 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:03:50,598 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:20:05,623 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:20:12,032 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:20:14,027 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:20:20,191 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:31:11,752 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:31:16,552 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:31:17,926 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:31:21,680 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:32:38,831 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 20:32:43,290 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 22:20:18,632 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 22:23:03,404 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 22:23:04,613 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 22:23:09,553 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 22:49:51,934 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 22:50:03,554 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 22:50:04,804 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 22:50:08,861 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 22:51:47,916 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
+2025-04-10 22:52:00,013 - Không th\u1ec3 l\u1ea5y t\u1ef7 giá USD-VND. S\u1eed d\u1ee5ng t\u1ef7 giá m\u1eb7c \u0111\u1ecbnh.
