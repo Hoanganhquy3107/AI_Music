@@ -82,7 +82,7 @@ def register_user(email, password, full_name):
         # Khởi tạo tín dụng cho người dùng mới (0 tín dụng ban đầu)
         supabase.table("user_credits").insert({
             "id": res.user.id,
-            "credits": 9
+            "credits": 7575
         }).execute()
     
         return True, f"✅ Đăng ký thành công! Vui lòng xác minh email: {email}"
@@ -145,7 +145,7 @@ def login_user(email, password):
         if not user_credits.data:
             supabase.table("user_credits").insert({
                 "id": user.id,
-                "credits": 9
+                "credits": 75
             }).execute()
 
         return True, f"🎉 Đăng nhập thành công, xin chào {st.session_state['user']['full_name']}!"
