@@ -815,7 +815,7 @@ MOMO_CONFIG = {
     "PartnerCode": "MOMO",
     "AccessKey": "F8BBA842ECF85",
     "SecretKey": "K951B6PE1waDMi640xX08PD3vg6EkVlz",
-    "ReturnUrl": "http://localhost:8501/",
+    "ReturnUrl": "https://aimusic-hvrshfpbpledtuyktezwbc.streamlit.app/",
     "IpnUrl": "https://webhook.site/b052aaf4-3be0-43c5-8bad-996d2d0c0e54",
     "RequestType": "captureWallet",  # ✅ API v2 yêu cầu đúng như vậy
     "ExtraData": "Astronaut_Music_payment"
