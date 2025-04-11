@@ -934,9 +934,14 @@ if menu == "Quản lý thanh toán":
                 "credits": package['credits'],
                 "amount": price_vnd
             }
+            pay_url = res_data["payUrl"]
+            st.success("✅ Đơn hàng đã được tạo. Bấm nút bên dưới để thanh toán.")
             st.markdown(f"""
-            <meta http-equiv="refresh" content="0; url={res.json()['payUrl']}"/>
-            <p>🔄 Đang chuyển hướng tới MoMo...</p>
+                <a href="{pay_url}" target="_blank">
+                    <button style="background-color:#f72585; color:white; padding:10px 20px; border:none; border-radius:5px;">
+                        🚀 Mở MoMo để thanh toán
+                    </button>
+                </a>
             """, unsafe_allow_html=True)
         else:
             st.error("Không thể tạo thanh toán.")
